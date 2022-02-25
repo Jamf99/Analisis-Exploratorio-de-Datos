@@ -1,6 +1,0 @@
-"0",""
-"0","#CARGUE DE LAS BASES DE DATOS"
-"0","inglesa_1 = read_excel(""Inglesa.xlsx"", sheet = ""18-19"")"
-"0","inglesa_2 = read_excel(""Inglesa.xlsx"", sheet = ""19-20"")"
-"0","inglesa_3 = read_excel(""Inglesa.xlsx"", sheet = ""20-21"")"
-"0",""

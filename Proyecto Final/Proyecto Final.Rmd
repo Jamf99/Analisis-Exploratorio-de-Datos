@@ -177,6 +177,35 @@ inglesa_aux = inglesa_final[ , c(1:2, 4, 6:7, 9:10, 12, 14, 16, 18)]
 
 ## Detección de anomalías
 
+```{r}
+
+str(inglesa_aux)
+
+```
+
+Para todas las variables, no se encontraron anomalías de tipo *Formato de las variables no coincide con su tipo de variable*
+
+Se procederá a analizar variable por variable en busca de cualquier tipo de anomalía:
+
+### Date
+
+```{r}
+
+summary(inglesa_aux$Date)
+
+```
+
+Se puede observar que no se encuentran datos atípicos, ni inválidos, además de que no posee inconsistencias ni campos vacíos.
+
+### HomeTeam
+
+```{r}
+
+tabla_freq(inglesa_aux$HC)
+
+```
+
+
 ## Creación de variables
 
 ## Conclusiones y recomendaciones
