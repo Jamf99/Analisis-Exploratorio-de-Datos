@@ -1,6 +1,0 @@
-"0",""
-"0","#Agregar nueva columna edad teniendo en cuenta la fecha de nacimiento y la fecha de presentación del exámen 09/10/2016"
-"0","fecha_examen = ymd(""2016-10-09"")"
-"0","base$ESTU_FECHANACIMIENTO = as.Date(base$ESTU_FECHANACIMIENTO, format=""%d/%m/%Y"")"
-"0","base$ESTU_EDAD = floor(time_length(ymd(fecha_examen) - ymd(base$ESTU_FECHANACIMIENTO), unit = ""year""))"
-"0",""

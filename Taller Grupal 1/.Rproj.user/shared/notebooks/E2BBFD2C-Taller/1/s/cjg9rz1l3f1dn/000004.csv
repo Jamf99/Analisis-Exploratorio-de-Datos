@@ -1,8 +1,0 @@
-"0","#Se crea un dataframe de los estudiantes que tengan NSE vacío"
-"0","base_campos_vacios_nse = subset(base, is.na(base$NSE))"
-"0",""
-"0","#Se crea un dataframe de los estudiantes que tengan INSE vacío"
-"0","base_campos_vacios_inse = subset(base, is.na(base$INSE))"
-"0",""
-"0","#Se valida de que ambas variables sean vacías cuando una ya lo es"
-"0",""

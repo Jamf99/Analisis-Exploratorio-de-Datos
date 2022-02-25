@@ -1,4 +1,0 @@
-"0",""
-"0","#Conocer cuántas personas no tienen etnia y respondieron a cuál pertenecen"
-"0","inconsistencia_dos = filter(base, base$ESTU_TIENE_ETNIA == ""NO"" & !is.na(base$ESTU_ETNIA))"
-"0","count(inconsistencia_dos) / count(base)"
