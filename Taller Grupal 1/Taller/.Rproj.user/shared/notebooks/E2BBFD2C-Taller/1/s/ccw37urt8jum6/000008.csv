@@ -1,0 +1,6 @@
+"0",""
+"0",""
+"0","#Agregar nueva columna nivel superior de inglés"
+"0","base$ESTU_INGLES_SUPERIOR = ifelse(base$MOD_INGLES_DESEM == ""B1"" | base$MOD_INGLES_DESEM == ""B2"", ""Sí"", ""No"")"
+"0","base$ESTU_INGLES_SUPERIOR = factor(base$ESTU_INGLES_SUPERIOR)"
+"0","tabla_freq(base$ESTU_INGLES_SUPERIOR)"

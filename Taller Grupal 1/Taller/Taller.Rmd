@@ -1,0 +1,362 @@
+---
+title: "Taller 1 - Análisis Exploratorio de Datos, Universidad ICESI"
+author: "María Paula Fernández, Cristian Palechor, Jorge Antonio Morales"
+date: "18/2/2022"
+output:
+  html_document:
+    theme: journal
+    highlight: espresso
+    dfprint: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(readxl)
+library(reshape2)
+library(dplyr)
+library(e1071)
+library(Hmisc)
+library(inspectdf) 
+library(funModeling) 
+library(VIM)
+library(stringr)
+library(xtable) 
+library(ggplot2)
+library(directlabels)
+library(scales)
+library(ggthemes)
+library(mice)
+library(BBmisc)
+
+# Cargue de la base de datos
+SABERTYT20162 <- read_delim("SABERTYT20162.csv", 
+    delim = ";", escape_double = FALSE, col_types = cols(ESTU_LIMITA_MOTRIZ = col_character(), 
+        ESTU_LIMITA_INVIDENTE = col_character(), 
+        ESTU_LIMITA_CONDICIONESPECIAL = col_character(), 
+        ESTU_LIMITA_SORDO = col_character(), 
+        ESTU_LIMITA_AUTISMO = col_character()), 
+    locale = locale(decimal_mark = ",", 
+        encoding = "ISO-8859-1"),
+    trim_ws = TRUE)
+View(SABERTYT20162)
+base <- SABERTYT20162
+
+#Eliminación de columnas innecesarias
+base = base[, -c(16:84)]
+
+#Filtrar por estudiantes colombianos
+base = base[base$ESTU_NACIONALIDAD == "1 COLOMBIA",]
+
+#Filtrar por estudiantes listos para ser publicados
+base = base[base$ESTU_ESTADO == "PUBLICAR",]
+
+descriptivas<- function(x){data.frame("MEDIDA"=c("Observaciones", "Mínimo", "1er Q", "Media", "Mediana", "Desv Est", "3er Q", "Máximo", "Asimetría", "Curtosis", "atípico leve<", "atípico leve>","atípico extremo<","atípico extremo>", "Err Est Media", "IC(95%) Media Up", "IC(95%) Media Down"),"VALOR"=format(c(length(na.omit(x)), min(na.omit(x)), quantile(na.omit(x), prob=0.25), mean(na.omit(x)), median(na.omit(x)), sd(na.omit(x)), quantile(na.omit(x), prob=0.75), max(na.omit(x)), skewness(na.omit(x)), kurtosis(na.omit(x)), (2.5*quantile(na.omit(x),prob=0.25)-1.5*quantile(na.omit(x), prob=0.75)),(2.5*quantile(na.omit(x),prob=0.75)-1.5*quantile(na.omit(x), prob=0.25)),(4*quantile(na.omit(x),prob=0.25)-3*quantile(na.omit(x), prob=0.75)),(4*quantile(na.omit(x),prob=0.75)-3*quantile(na.omit(x), prob=0.25)), ((sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))+1.96*(sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))-1.96*((sd(na.omit(x))/sqrt(length(na.omit(x))))))), scientific = F))}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS
+
+descriptivas2<-function(Continua,Categorías){
+  x1=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){length(na.omit(x))})
+  names(x1)=c("Categoría","Obs")
+  x2=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){min(na.omit(x))})
+  names(x2)=c("Categoría","Mínimo")
+  x3=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.25)})
+  names(x3)=c("Categoría","1er Q")
+  x4=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){median(na.omit(x))})
+  names(x4)=c("Categoría","Mediana")
+  x5=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){mean(na.omit(x))})
+  names(x5)=c("Categoría","Media")
+  x6=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.75)})
+  names(x6)=c("Categoría","3er Q")
+  x7=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){max(na.omit(x))})
+  names(x7)=c("Categoría","Máximo")
+  x8=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){sd(na.omit(x))})
+  names(x8)=c("Categoría","Desv Est")
+  x9=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){skewness(na.omit(x))})
+  names(x9)=c("Categoría","Asimetría")
+  x10=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){kurtosis(na.omit(x))})
+  names(x10)=c("Categoría","Curtosis")
+  cbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)[,-seq(3,19,2)]
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS EN SUBMUESTRAS
+  
+tabla_freq<- function(x,total=1,na="ifany"){
+  if (total==1) {
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",sum(M$`Freq. Abs.`),sum(M$`Freq. Rel.`))
+    M$`Freq. Rel.`=as.numeric(M$`Freq. Rel.`)
+    M$`Freq. Abs.`=as.numeric(M$`Freq. Abs.`)
+    M
+  } else{
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M
+  }
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VAR DISCRETAS
+
+tabla_freq2<-function(x,y,na="ifany",prop=0, suma=c("filas","col")){
+  if (prop==0) {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    M
+  } else if (prop==1 & suma=="filas") {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 2:ncol(M)) {
+      M[,i]=M[,i]/M[,ncol(M)]
+    }
+    M
+  } else {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 1:nrow(M)) {
+      M[i,2:ncol(M)]=M[i,2:ncol(M)]/M[nrow(M),2:ncol(M)]
+    }
+    M 
+  }
+
+}
+```
+
+# Contexto
+
+El examen prueba saber TyT, es un examen que deben presentar todos los estudiantes proximos a graduarse de sus estudios tecnicos profesionales y tecnológicos.
+Se evalua en cinco modulos: 
+
+- Lectura Crítica
+- Razonamiento cuantitativo
+- Competencias ciudadanas
+- Comunicación escrita 
+- Inglés 
+
+## Cargue de datos y procedimientos iniciales
+
+El objetivo de documento, es analizar la base de datos de los resultados de los estudiantes a nivel nacional que realizaron las pruebas en el año 2016. 
+La base entregada para el estudio contiene 53040 observaciones y 104 columnas, a lo largo del desarrollo se irá depurando algunas variables de interés.
+
+Inicialmente, se carga la base para el análisis, y eliminamos columnas hasta obtener 35 columnas que van a ser utilizadas en el ejercicio, posterior se filtra
+la información por estudiantes que tienen sus resultados para Publicar y sean de nacionalidad colombianos.
+
+
+Por otro lado, se agregan dos columnas adicionales:
+
+- ESTU_EDAD: teniendo en cuenta la fecha de nacimiento y la fecha de presentación del examen.
+- ESTU_INGLES_SUPERIOR: Sí si el estudiante está en el nivel de inglés B1 o B2, No si no lo está.
+
+Posteriormente, se revisa de que no hayan datos duplicados.
+
+```{r, include=FALSE}
+library(lubridate)
+
+#Se verifica que no existan datos duplicados
+tabla_freq(duplicated(base))
+
+
+#Agregar nueva columna nivel superior de inglés
+base$ESTU_INGLES_SUPERIOR = ifelse(base$MOD_INGLES_DESEM == "B1" | base$MOD_INGLES_DESEM == "B2", "Sí", "No")
+base$ESTU_INGLES_SUPERIOR = factor(base$ESTU_INGLES_SUPERIOR)
+tabla_freq(base$ESTU_INGLES_SUPERIOR)
+
+#Agregar nueva columna edad teniendo en cuenta la fecha de nacimiento y la fecha de presentación del exámen 09/10/2016
+fecha_examen = ymd("2016-10-09")
+base$ESTU_FECHANACIMIENTO = as.Date(base$ESTU_FECHANACIMIENTO, format="%d/%m/%Y")
+base$ESTU_EDAD = floor(time_length(ymd(fecha_examen) - ymd(base$ESTU_FECHANACIMIENTO), unit = "year"))
+
+```
+
+## Verificación y limpieza de anomalías
+### Variable "ESTU_EDAD"
+La variable es de tipo numérico y se observa que existe un campo vacío, existen datos inválidos y datos atípicos.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+descriptivas(base$ESTU_EDAD)
+```
+Teniendo en cuenta la gráfica de caja de bigotes, se logran observar bastantes valores atípicos. Sin embargo, no se tomarán como atípicos los que se encuentran en el nivel superior debido a que los adultos mayores pueden realizar las pruebas.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.cap="Diagrama de bigotes de las edades"}
+boxplot(base$ESTU_EDAD)
+```
+
+
+#### **Datos atípicos:**
+
+
+Según la Ley 749 de 2002 del Ministerio de Educación, los estudiantes podrán acceder a estudios de educación superior técnicas profesionales y tecnológicas a partir de los 16 años, es por esto que se tomarám como atípicos todos aquellos estudiantes menores de 16 años que corresponden a 57 estudiantes (0.0001% de los datos).
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+count(base, base$ESTU_EDAD >0 & base$ESTU_EDAD < 16 )
+```
+
+
+
+#### **Datos inválidos:**
+Se encontraron 51 datos inválidos (0.00009% de los datos), que se refieren a edades 0 y negativas. Lo anterior pudo ocurrir debido al mal diligenciamiento del campo fecha de nacimiento, por lo que se consideraría una perdida aleatoria de datos (MCAR).
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+count(base, base$ESTU_EDAD <= 0)
+
+```
+Una vez reconocidas las anomalías, se procede a convertirlas en NA para después imputar por la edad. Para no caer en incosistencias en los datos, se elimina la variable ESTU_FECHANACIMIENTO dado a que la edad es más representativa.
+
+```{r, include=FALSE}
+#Se convierte en NA todos los estudiantes menores de 16 años
+base$ESTU_EDAD[base$ESTU_EDAD<16]=NA
+
+#Se elimina la columna fecha de nacimiento
+base$ESTU_FECHANACIMIENTO = NULL
+
+```
+
+### Variable "ESTU_TIENE_ETNIA" y "ESTU_ETNIA"
+De estas dos variables, se puede observar que el 85% de los encuestados no pertenecen a una etnia, el 6% si pertenece y existen campos vacíos en el 8% de los registros.
+
+```{r, include=FALSE}
+tabla_freq(base$ESTU_TIENE_ETNIA)
+
+#Se convierte en factor la columna de estu_tiene_etnia
+base$ESTU_TIENE_ETNIA = factor(base$ESTU_TIENE_ETNIA)
+
+#Se convierte en factor la columna de estu_etnia
+base$ESTU_ETNIA <- factor(base$ESTU_ETNIA, levels = c("1 Comunidad afrodescendiente", "2 Raizal", "3 Comunidad Rom (gitana)", "4 Paez", "5 Cubeo", "6 Embera", "7 Pijao", "8 Wayúu", "9 Pasto", "10 Cancuamo", "11 Inga", "12 Tucano", "13 Huitoto", "14 Sikuani", "15 Palenquero", "16 Arhuaco", "17 Guambiano", "18 Zenú", "19 Otro grupo étnico minoritario", "100 Ninguno"))
+
+
+```
+
+Estas dos variables están relacionadas y comprenden anomalías de tipo inconsistencia:
+
+- Incosistencia sobre 266 estudiantes que pertenecen a una etnia y no haya respondido a cuál (Corresponden al 0.05% de los datos)
+
+```{r, include=FALSE}
+
+#Conocer cuántas personas tienen etnia y no respondieron a cuál pertenecen
+inconsistencia_uno = filter(base, base$ESTU_TIENE_ETNIA == "SI" & is.na(base$ESTU_ETNIA))
+count(inconsistencia_uno) / count(base)
+```
+
+- Inconsistencia sobre 76 estudiantes que no indicaron que no pertencen a una etnia y sin embargo respondieron a qué etnia pertenecían (Corresponden al 0.014% de los datos)
+
+```{r, include=FALSE}
+
+#Conocer cuántas personas no tienen etnia y respondieron a cuál pertenecen
+inconsistencia_dos = filter(base, base$ESTU_TIENE_ETNIA == "NO" & !is.na(base$ESTU_ETNIA))
+count(inconsistencia_dos) / count(base)
+```
+
+- Inconsistencia sobre 1590 estudiantes que indicaron que pertencen a una etnia y sin embargo respondieron a qué no pertenecían a una (Corresponden al 3% de los datos)
+
+```{r, include=FALSE}
+#Conocer cuántas personas no tienen etnia y respondieron a cuál pertenecen
+inconsistencia_tres = filter(base, base$ESTU_TIENE_ETNIA == "SI" & base$ESTU_ETNIA=="100 Ninguno")
+count(inconsistencia_tres)
+count(inconsistencia_tres) / count(base)
+
+#Número total de anomalías según las tres incosistencias
+total_anomalias_estu_etnia = count(inconsistencia_uno) + count(inconsistencia_dos) + count(inconsistencia_tres)
+total_anomalias_estu_etnia / count(base)
+```
+
+Teniendo en cuenta lo anterior, existen 1932 anomalías de tipo incosistencia en el diligenciamiento de las etnias que corresponden al 3.6% de los datos. 
+
+Es necesario validar con el encuestador y que justifiquen la estructura de estos dos campos.
+
+### Variable "ESTU_LIMITA_MOTRIZ", "ESTU_LIMITA_INVIDENTE", "ESTU_LIMITA_CONDICIONESPECIAL", "ESTU_LIMITA_SORDO", "ESTU_LIMITA_AUTISMO"
+Se procedió a corregir el tipo de dato para cada columna y reemplazar los NA por "NO" y las "x" por "SI".
+No se encontraron anomalías para estos registros.
+
+```{r, include=FALSE}
+
+#Recorre las cinco columnas de discapacidades y reemplaza los NA por "NO" y las "x" por "si"
+for (i in 10:14){
+   base[,i]= ifelse(is.na(base[,i]),"NO","SI")
+}
+
+```
+
+### Variable "INSE" y "NSE"
+Según el ICFES, el INSE (Índice socioeconómico continuo) y el NSE (Nivel socioeconómico discreto) son variables dependientes que se basan en rangos según el nivel socioeconómico.
+
+- **Detección de anomalías para campos vacíos:** Existen 753 campos vacíos que corresponden al 1.42% de los datos.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+summary(base$NSE)
+summary(base$INSE)
+
+```
+- **Detección de anomalías de incosistencia en los campos vacíos:**  No se encontraron anomalías de inconsistencia en los campos vacíos porque si existen un NA en una variable también lo habrá en la otra.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+#Se crea un dataframe de los estudiantes que tengan NSE vacío
+base_campos_vacios_nse = subset(base, is.na(base$NSE))
+
+#Se crea un dataframe de los estudiantes que tengan INSE vacío
+base_campos_vacios_inse = subset(base, is.na(base$INSE))
+
+#Se valida de que ambas variables sean vacías cuando una ya lo es
+
+```
+
+En conclusión para los campos vacíos que se encuentran en las variables NSE Y INSE, se considera pertinente revisar con el encuestador estos campos dado que no deberían ser nulos dado que toda persona debe pertenecer a un nivel socioeconómico.
+
+- **Detección de anomalías para inconsistencias según el reporte del ICFES:**
+En la tabla se observa que tanto los mínimos como los máximos de los INSE no coinciden con las reglas del ICFES, esto genera una inconsistencia.
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+#Verifica que la variable INSE sea numérica
+class(base$INSE)
+
+#Convertir la columna NSE en factor
+base$NSE = factor(base$NSE)
+
+descriptivas2(base$INSE, base$NSE)
+
+```
+- NSE1: Se identificaron a 6207 personas fuera del rango establecido, lo que comprende al 11.7% de los datos.
+- NSE2: Se identificaron a 9903 personas fuera del rango establecido, lo que comprende al 18.8% de los datos.
+- NSE3: Se identificaron a 25 personas fuera del rango establecido, lo que comprende al 0.0009% de los datos.
+- NSE4: Se identificaron a 6709 personas fuera del rango establecido, lo que comprende al 12.73% de los datos.
+
+Para un valor total de 22804 personas que representan una inconsistencia en los datos (el 43.37% de la población)
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+# Número de personas que no coinciden con la norma del ICFES 
+
+peso1 = count(subset(base, !(base$INSE >0 & base$INSE <= 41.109 ) & base$NSE == "NSE1"))
+peso2 = count(subset(base, !(base$INSE >41.109 & base$INSE <= 51.176 ) & base$NSE == "NSE2"))
+peso3 = count(subset(base, !(base$INSE >51.176 & base$INSE <= 64.084 ) & base$NSE == "NSE3"))
+peso4 = count(subset(base, !(base$INSE >64.084 & base$INSE <= 100 ) & base$NSE == "NSE4"))
+
+#Se crea un nuevo dataframe teniendo en cuenta el NSE y el peso de las anomalías para cada uno
+nse = c("NSE1", "NSE2", "NSE3", "NSE4")
+peso = c(0,0,0,0)
+pesos = c(peso1, peso2, peso3, peso4)
+inconsistentes = data.frame(nse=nse, peso=peso)
+for (i in 1:4){
+   inconsistentes[i,2]= pesos[i]
+     
+}
+
+inconsistentes
+
+
+```
+
+En conclusión, se necesita hablar con los recolectores de datos para identificar así estas anomalías en el NSE e INSE. Se pone en consulta para verificar la información de los rangos correspondientes al ICFES del año 2016.

@@ -1,0 +1,8 @@
+"0",""
+"0","#Se convierte en factor la columna de estu_tiene_etnia"
+"0","base$ESTU_TIENE_ETNIA = factor(base$ESTU_TIENE_ETNIA)"
+"0",""
+"0","#Se convierte en factor la columna de estu_etnia"
+"0","base$ESTU_ETNIA <- factor(base$ESTU_ETNIA, levels = c(""1 Comunidad afrodescendiente"", ""2 Raizal"", ""3 Comunidad Rom (gitana)"", ""4 Paez"", ""5 Cubeo"", ""6 Embera"", ""7 Pijao"", ""8 Wayúu"", ""9 Pasto"", ""10 Cancuamo"", ""11 Inga"", ""12 Tucano"", ""13 Huitoto"", ""14 Sikuani"", ""15 Palenquero"", ""16 Arhuaco"", ""17 Guambiano"", ""18 Zenú"", ""19 Otro grupo étnico minoritario"", ""100 Ninguno""))"
+"0",""
+"0",""

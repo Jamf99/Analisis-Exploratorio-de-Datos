@@ -1,0 +1,4 @@
+"0","library(lubridate)"
+"0",""
+"0","#Se verifica que no existan datos duplicados"
+"0","tabla_freq(duplicated(base))"

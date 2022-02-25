@@ -1,0 +1,247 @@
+"0","knitr::opts_chunk$set(echo = TRUE)"
+"0","library(readr)"
+"0","library(readxl)"
+"0","library(reshape2)"
+"0","library(dplyr)"
+"2","
+Attaching package: ‘dplyr’
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(e1071)"
+"0","library(Hmisc)"
+"2","Loading required package: lattice
+"
+"2","Loading required package: survival
+"
+"2","Loading required package: Formula
+"
+"2","Loading required package: ggplot2
+"
+"2","
+Attaching package: ‘Hmisc’
+
+"
+"2","The following object is masked from ‘package:e1071’:
+
+    impute
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    src, summarize
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    format.pval, units
+
+"
+"0","library(inspectdf) #este no lo tienen"
+"0","library(funModeling) #este no lo tienen"
+"2","funModeling v.1.9.4 :)
+Examples and tutorials at livebook.datascienceheroes.com
+ / Now in Spanish: librovivodecienciadedatos.ai
+"
+"0","library(VIM) #este no lo tienen"
+"2","Loading required package: colorspace
+"
+"2","Loading required package: grid
+"
+"2","VIM is ready to use.
+
+"
+"2","Suggestions and bug-reports can be submitted at: https://github.com/statistikat/VIM/issues
+"
+"2","
+Attaching package: ‘VIM’
+
+"
+"2","The following object is masked from ‘package:datasets’:
+
+    sleep
+
+"
+"0","library(stringr)"
+"0","library(xtable) #este no lo tienen"
+"2","
+Attaching package: ‘xtable’
+
+"
+"2","The following objects are masked from ‘package:Hmisc’:
+
+    label, label<-
+
+"
+"0","library(ggplot2)"
+"0","library(directlabels)"
+"0","library(scales)"
+"2","
+Attaching package: ‘scales’
+
+"
+"2","The following object is masked from ‘package:readr’:
+
+    col_factor
+
+"
+"0","library(ggthemes)"
+"0","library(mice)"
+"2","
+Attaching package: ‘mice’
+
+"
+"2","The following object is masked from ‘package:stats’:
+
+    filter
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    cbind, rbind
+
+"
+"0","library(BBmisc)"
+"2","
+Attaching package: ‘BBmisc’
+
+"
+"2","The following object is masked from ‘package:grid’:
+
+    explode
+
+"
+"2","The following object is masked from ‘package:Hmisc’:
+
+    %nin%
+
+"
+"2","The following objects are masked from ‘package:dplyr’:
+
+    coalesce, collapse
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    isFALSE
+
+"
+"0","# Cargue de la base de datos"
+"0","SABERTYT20162 <- read_delim(""SABERTYT20162.csv"", "
+"0","    delim = "";"", escape_double = FALSE, col_types = cols(ESTU_LIMITA_MOTRIZ = col_character(), "
+"0","        ESTU_LIMITA_INVIDENTE = col_character(), "
+"0","        ESTU_LIMITA_CONDICIONESPECIAL = col_character(), "
+"0","        ESTU_LIMITA_SORDO = col_character(), "
+"0","        ESTU_LIMITA_AUTISMO = col_character()), "
+"0","    locale = locale(decimal_mark = "","", "
+"0","        encoding = ""ISO-8859-1""),"
+"0","    trim_ws = TRUE)"
+"2","Warning:"
+"2"," One or more parsing issues, see `problems()` for details
+"
+"0","View(SABERTYT20162)"
+"0","base <- SABERTYT20162"
+"0",""
+"0","#Eliminación de columnas innecesarias"
+"0","base = base[, -c(16:84)]"
+"0",""
+"0","#Filtrar por estudiantes colombianos"
+"0","base = base[base$ESTU_NACIONALIDAD == ""1 COLOMBIA"",]"
+"0",""
+"0","#Filtrar por estudiantes listos para ser publicados"
+"0","base = base[base$ESTU_ESTADO == ""PUBLICAR"",]"
+"0",""
+"0","descriptivas<- function(x){data.frame(""MEDIDA""=c(""Observaciones"", ""Mínimo"", ""1er Q"", ""Media"", ""Mediana"", ""Desv Est"", ""3er Q"", ""Máximo"", ""Asimetría"", ""Curtosis"", ""atípico leve<"", ""atípico leve>"",""atípico extremo<"",""atípico extremo>"", ""Err Est Media"", ""IC(95%) Media Up"", ""IC(95%) Media Down""),""VALOR""=format(c(length(na.omit(x)), min(na.omit(x)), quantile(na.omit(x), prob=0.25), mean(na.omit(x)), median(na.omit(x)), sd(na.omit(x)), quantile(na.omit(x), prob=0.75), max(na.omit(x)), skewness(na.omit(x)), kurtosis(na.omit(x)), (2.5*quantile(na.omit(x),prob=0.25)-1.5*quantile(na.omit(x), prob=0.75)),(2.5*quantile(na.omit(x),prob=0.75)-1.5*quantile(na.omit(x), prob=0.25)),(4*quantile(na.omit(x),prob=0.25)-3*quantile(na.omit(x), prob=0.75)),(4*quantile(na.omit(x),prob=0.75)-3*quantile(na.omit(x), prob=0.25)), ((sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))+1.96*(sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))-1.96*((sd(na.omit(x))/sqrt(length(na.omit(x))))))), scientific = F))}"
+"0","#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS"
+"0",""
+"0","descriptivas2<-function(Continua,Categorías){"
+"0","  x1=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){length(na.omit(x))})"
+"0","  names(x1)=c(""Categoría"",""Obs"")"
+"0","  x2=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){min(na.omit(x))})"
+"0","  names(x2)=c(""Categoría"",""Mínimo"")"
+"0","  x3=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.25)})"
+"0","  names(x3)=c(""Categoría"",""1er Q"")"
+"0","  x4=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){median(na.omit(x))})"
+"0","  names(x4)=c(""Categoría"",""Mediana"")"
+"0","  x5=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){mean(na.omit(x))})"
+"0","  names(x5)=c(""Categoría"",""Media"")"
+"0","  x6=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.75)})"
+"0","  names(x6)=c(""Categoría"",""3er Q"")"
+"0","  x7=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){max(na.omit(x))})"
+"0","  names(x7)=c(""Categoría"",""Máximo"")"
+"0","  x8=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){sd(na.omit(x))})"
+"0","  names(x8)=c(""Categoría"",""Desv Est"")"
+"0","  x9=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){skewness(na.omit(x))})"
+"0","  names(x9)=c(""Categoría"",""Asimetría"")"
+"0","  x10=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){kurtosis(na.omit(x))})"
+"0","  names(x10)=c(""Categoría"",""Curtosis"")"
+"0","  cbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)[,-seq(3,19,2)]"
+"0","}"
+"0","#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS EN SUBMUESTRAS"
+"0","  "
+"0","tabla_freq<- function(x,total=1,na=""ifany""){"
+"0","  if (total==1) {"
+"0","    M=data.frame(""Categoría""=table(x, useNA = na), ""Rel""=prop.table(table(x,useNA = na)))[,-3]"
+"0","    names(M)=c(""Categoría"",""Freq. Abs."",""Freq. Rel."")"
+"0","    M$Categoría=as.character(M$Categoría)"
+"0","    M[nrow(M)+1,]=c(""Total"",sum(M$`Freq. Abs.`),sum(M$`Freq. Rel.`))"
+"0","    M$`Freq. Rel.`=as.numeric(M$`Freq. Rel.`)"
+"0","    M$`Freq. Abs.`=as.numeric(M$`Freq. Abs.`)"
+"0","    M"
+"0","  } else{"
+"0","    M=data.frame(""Categoría""=table(x, useNA = na), ""Rel""=prop.table(table(x,useNA = na)))[,-3]"
+"0","    names(M)=c(""Categoría"",""Freq. Abs."",""Freq. Rel."")"
+"0","    M"
+"0","  }"
+"0","}"
+"0","#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VAR DISCRETAS"
+"0",""
+"0","tabla_freq2<-function(x,y,na=""ifany"",prop=0, suma=c(""filas"",""col"")){"
+"0","  if (prop==0) {"
+"0","    M=as.data.frame.matrix(table(x, y, useNA = na))"
+"0","    M$Categoría=row.names(M)"
+"0","    rownames(M)=NULL"
+"0","    M=M[,c(ncol(M),1:ncol(M)-1)]"
+"0","    M$Categoría=as.character(M$Categoría)"
+"0","    M[nrow(M)+1,]=c(""Total"",colSums(M[,2:ncol(M)]))"
+"0","    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)"
+"0","    M$Total=rowSums(M[,2:ncol(M)])"
+"0","    M"
+"0","  } else if (prop==1 & suma==""filas"") {"
+"0","    M=as.data.frame.matrix(table(x, y, useNA = na))"
+"0","    M$Categoría=row.names(M)"
+"0","    rownames(M)=NULL"
+"0","    M=M[,c(ncol(M),1:ncol(M)-1)]"
+"0","    M$Categoría=as.character(M$Categoría)"
+"0","    M[nrow(M)+1,]=c(""Total"",colSums(M[,2:ncol(M)]))"
+"0","    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)"
+"0","    M$Total=rowSums(M[,2:ncol(M)])"
+"0","    for (i in 2:ncol(M)) {"
+"0","      M[,i]=M[,i]/M[,ncol(M)]"
+"0","    }"
+"0","    M"
+"0","  } else {"
+"0","    M=as.data.frame.matrix(table(x, y, useNA = na))"
+"0","    M$Categoría=row.names(M)"
+"0","    rownames(M)=NULL"
+"0","    M=M[,c(ncol(M),1:ncol(M)-1)]"
+"0","    M$Categoría=as.character(M$Categoría)"
+"0","    M[nrow(M)+1,]=c(""Total"",colSums(M[,2:ncol(M)]))"
+"0","    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)"
+"0","    M$Total=rowSums(M[,2:ncol(M)])"
+"0","    for (i in 1:nrow(M)) {"
+"0","      M[i,2:ncol(M)]=M[i,2:ncol(M)]/M[nrow(M),2:ncol(M)]"
+"0","    }"
+"0","    M "
+"0","  }"
+"0",""
+"0","}"

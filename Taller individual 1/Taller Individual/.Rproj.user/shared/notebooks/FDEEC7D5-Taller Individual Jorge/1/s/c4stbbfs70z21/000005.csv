@@ -1,0 +1,4 @@
+"0","
+tabla_freq(base$Intercambio_entrante)
+"
+"0","base = base[base$Intercambio_entrante == ""N"", ]"

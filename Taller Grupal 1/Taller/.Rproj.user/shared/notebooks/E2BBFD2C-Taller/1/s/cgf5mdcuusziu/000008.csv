@@ -1,0 +1,3 @@
+"0","#Conocer cuántas personas no tienen etnia y respondieron a cuál pertenecen"
+"0","inconsistencia_tres = filter(base, base$ESTU_TIENE_ETNIA == ""SI"" & base$ESTU_ETNIA==""100 Ninguno"")"
+"0","count(inconsistencia_tres)"

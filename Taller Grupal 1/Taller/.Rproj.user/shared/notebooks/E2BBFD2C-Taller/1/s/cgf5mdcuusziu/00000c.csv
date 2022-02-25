@@ -1,0 +1,4 @@
+"0",""
+"0","#Número total de anomalías según las tres incosistencias"
+"0","total_anomalias_estu_etnia = count(inconsistencia_uno) + count(inconsistencia_dos) + count(inconsistencia_tres)"
+"0","total_anomalias_estu_etnia / count(base)"

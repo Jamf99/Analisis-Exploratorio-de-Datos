@@ -1,0 +1,6 @@
+"0",""
+"0","#Recorre las cinco columnas de discapacidades y reemplaza los NA por ""NO"" y las ""x"" por ""si"""
+"0","for (i in 10:14){"
+"0","   base[,i]= ifelse(is.na(base[,i]),""NO"",""SI"")"
+"0","}"
+"0",""

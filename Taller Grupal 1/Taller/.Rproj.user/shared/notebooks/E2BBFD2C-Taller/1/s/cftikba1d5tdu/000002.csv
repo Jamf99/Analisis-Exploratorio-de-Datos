@@ -1,0 +1,6 @@
+"0","#Se convierte en NA todos los estudiantes menores de 16 años"
+"0","base$ESTU_EDAD[base$ESTU_EDAD<16]=NA"
+"0",""
+"0","#Se elimina la columna fecha de nacimiento"
+"0","base$ESTU_FECHANACIMIENTO = NULL"
+"0",""
