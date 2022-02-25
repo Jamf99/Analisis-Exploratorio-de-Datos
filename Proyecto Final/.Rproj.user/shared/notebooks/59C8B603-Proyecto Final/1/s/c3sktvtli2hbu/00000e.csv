@@ -1,0 +1,3 @@
+"0","#CREAR TABLA DE LAS VARIABLES"
+"0","variables <- read_excel(""Variables.xlsx"")"
+"0","variables"
