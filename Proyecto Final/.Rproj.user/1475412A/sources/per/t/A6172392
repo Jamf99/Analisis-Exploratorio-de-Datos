@@ -1,9 +1,9 @@
 {
     "id": "A6172392",
-    "path": "C:/Users/joran/Desktop/Proyecto Final/Proyecto Final.Rmd",
+    "path": "C:/Users/joran/Desktop/Cmd/Analisis-Exploratorio-de-Datos/Proyecto Final/Proyecto Final.Rmd",
     "project_path": "Proyecto Final.Rmd",
     "type": "r_markdown",
-    "hash": "565361859",
+    "hash": "453859767",
     "contents": "",
     "dirty": false,
     "created": 1645478058880.0,
@@ -13,16 +13,16 @@
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "165,211",
-        "scrollLine": "151",
-        "last_setup_crc32": "3D7D2AEC38f5da56"
+        "cursorPosition": "288,63",
+        "scrollLine": "271",
+        "last_setup_crc32": "2A56115638f5da56"
     },
     "folds": "",
-    "lastKnownWriteTime": 1645802412,
+    "lastKnownWriteTime": 1645846373,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1645802412594,
+    "last_content_update": 1645846373172,
     "read_only": false,
     "read_only_alternatives": []
 }

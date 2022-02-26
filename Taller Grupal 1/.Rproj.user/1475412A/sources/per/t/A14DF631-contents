@@ -230,6 +230,11 @@ base$ESTU_FECHANACIMIENTO = NULL
 ### Variable "ESTU_TIENE_ETNIA" y "ESTU_ETNIA"
 De estas dos variables, se puede observar que el 85% de los encuestados no pertenecen a una etnia, el 6% si pertenece y existen campos vacíos en el 8% de los registros.
 
+```{r}
+tabla_freq(base$ESTU_TIENE_ETNIA)
+```
+
+
 ```{r, include=FALSE}
 tabla_freq(base$ESTU_TIENE_ETNIA)
 

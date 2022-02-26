@@ -160,22 +160,139 @@ inglesa_final = full_join(inglesa_aux, inglesa_1)
 inglesa_final = inglesa_final[ , c(2, 4:11, 15:24)]
 
 
-
-```
-
-Solamente tendremos en cuenta los equipos que jugaron de local, puesto que esta es nuestra variable de interés, se necesita observar cómo es el patrón del rendimiento a inicios, durante y después de la pandemia.
-
-```{r}
-
-# REORDENAMIENTO DE LA BASE DE DATOS - 1RA VERSIÓN
-# ELIMINAMOS EL EQUIPO CONTRINCANTE Y TODO LO QUE TENGA QUE VER CON ÉL
-
-inglesa_aux = inglesa_final[ , c(1:2, 4, 6:7, 9:10, 12, 14, 16, 18)]
-
 ```
 
 
 ## Detección de anomalías
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+#Revisa duplicados
+tabla_freq(duplicated(inglesa_final))
+
+#Revisa tipo de variable
+str(inglesa_final)
+
+inglesa_final$Date = as.Date(inglesa_final$Date, format="%d-%m-%y")
+
+```
+
+
+Existen 7 filas duplicadas por lo cual se procede a eliminarlas.Por otra parte, para todas las variables no se encontraron anomalías de tipo *Formato de las variables no coincide con su tipo de variable*, por lo tanto, se analizará variable por variable en busca de cualquier tipo de anomalía:
+
+
+```{r, include=FALSE}
+
+#Elimina duplicados
+inglesa_final = inglesa_final[!duplicated(inglesa_final),]
+
+
+```
+
+
+### Date
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+summary(inglesa_final$Date)
+
+```
+
+Se puede observar que no se encuentran datos atípicos, ni inválidos, además de que no posee inconsistencias ni campos vacíos.
+
+### HomeTeam
+
+Para los equipos locales no existen valores atípicos, inválidos, ni con errores de digitación. No obstante, se halló un campo vacío que corresponde al 0,087% de los datos, por tanto se procede lo tomaremos como un MCAR y realizaremos un Listwise deletion.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+#Revisar anomalías
+tabla_freq(inglesa_final$HomeTeam)
+
+#Eliminar campo nulo
+inglesa_final = inglesa_final[!is.na(inglesa_final$HomeTeam),]
+
+```
+
+### AwayTeam
+
+No existen anomalías.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+tabla_freq(inglesa_final$AwayTeam)
+
+```
+
+### FTHG
+
+Se obsreva un dato atípico, un dato inválido y 5 campos vacíos. Para este caso, se decide imputar basado en los marcadores oficiales de los partidos que se encuentran en otras bases de datos.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+summary(inglesa_final$FTHG)
+
+```
+
+```{r, include=FALSE}
+
+# Guardamos los anómalos en un dataframe para analizarlos mejor
+anomalos_FTHG = inglesa_final[(inglesa_final$FTHG == 33 | inglesa_final$FTHG < 0 | is.na(inglesa_final$FTHG)),]
+
+boxplot(inglesa_final$FTHG)
+
+# Imputando datos con base en medios oficiales
+
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+
+```
+
+### FTHG
+
+Se obsreva un dato atípico, un dato inválido y 5 campos vacíos. Para este caso, también se decide imputar basado en los marcadores oficiales de los partidos que se encuentran en otras bases de datos.
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+summary(inglesa_final$FTAG)
+
+```
+```{r, include=FALSE}
+
+# Guardamos los anómalos en un dataframe para analizarlos mejor
+anomalos_FTAG = inglesa_final[(inglesa_final$FTAG == 27 | inglesa_final$FTAG < 0 | is.na(inglesa_final$FTAG)),]
+
+boxplot(inglesa_final$FTHG)
+
+# Imputando datos con base en medios oficiales
+
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+
+```
+
+### FTR
+
+No existen anomalías
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+tabla_freq(inglesa_final$FTR)
+
+```
+
+
 
 ## Creación de variables
 
