@@ -1,0 +1,537 @@
+---
+title: "Taller Grupal II - Análisis Exploratorio de Datos, Universidad ICESI"
+author: "María Paula Fernández, Cristian Palechor, Jorge Antonio Morales"
+date: "3/1/2022"
+output:
+  html_document:
+      theme: journal
+      highlight: espresso
+      dfprint: paged
+---
+```{r, include= FALSE}
+
+library(reshape2)
+library(dplyr)
+library(e1071)
+library(Hmisc)
+library(inspectdf) 
+library(funModeling) 
+library(VIM)
+library(stringr)
+library(xtable) 
+library(ggplot2)
+library(directlabels)
+library(ggthemes)
+library(mice)
+library(BBmisc)
+library(car)
+library(nortest)
+library(corrplot)
+library(scales)
+library(gridExtra)
+library(GGally)
+
+descriptivas<- function(x){data.frame("MEDIDA"=c("Observaciones", "Mínimo", "1er Q", "Media", "Mediana", "Desv Est", "3er Q", "Máximo", "Asimetría", "Curtosis", "atípico leve<", "atípico leve>","atípico extremo<","atípico extremo>", "Err Est Media", "IC(95%) Media Up", "IC(95%) Media Down"),"VALOR"=format(c(length(na.omit(x)), min(na.omit(x)), quantile(na.omit(x), prob=0.25), mean(na.omit(x)), median(na.omit(x)), sd(na.omit(x)), quantile(na.omit(x), prob=0.75), max(na.omit(x)), skewness(na.omit(x)), kurtosis(na.omit(x)), (2.5*quantile(na.omit(x),prob=0.25)-1.5*quantile(na.omit(x), prob=0.75)),(2.5*quantile(na.omit(x),prob=0.75)-1.5*quantile(na.omit(x), prob=0.25)),(4*quantile(na.omit(x),prob=0.25)-3*quantile(na.omit(x), prob=0.75)),(4*quantile(na.omit(x),prob=0.75)-3*quantile(na.omit(x), prob=0.25)), ((sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))+1.96*(sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))-1.96*((sd(na.omit(x))/sqrt(length(na.omit(x))))))), scientific = F))}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS
+
+descriptivas2<-function(Continua,Categorías){
+  x1=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){length(na.omit(x))})
+  names(x1)=c("Categoría","Obs")
+  x2=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){min(na.omit(x))})
+  names(x2)=c("Categoría","Mínimo")
+  x3=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.25)})
+  names(x3)=c("Categoría","1er Q")
+  x4=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){median(na.omit(x))})
+  names(x4)=c("Categoría","Mediana")
+  x5=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){mean(na.omit(x))})
+  names(x5)=c("Categoría","Media")
+  x6=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.75)})
+  names(x6)=c("Categoría","3er Q")
+  x7=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){max(na.omit(x))})
+  names(x7)=c("Categoría","Máximo")
+  x8=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){sd(na.omit(x))})
+  names(x8)=c("Categoría","Desv Est")
+  x9=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){skewness(na.omit(x))})
+  names(x9)=c("Categoría","Asimetría")
+  x10=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){kurtosis(na.omit(x))})
+  names(x10)=c("Categoría","Curtosis")
+  cbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)[,-seq(3,19,2)]
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS EN SUBMUESTRAS
+  
+tabla_freq<- function(x,total=1,na="ifany"){
+  if (total==1) {
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",sum(M$`Freq. Abs.`),sum(M$`Freq. Rel.`))
+    M$`Freq. Rel.`=as.numeric(M$`Freq. Rel.`)
+    M$`Freq. Abs.`=as.numeric(M$`Freq. Abs.`)
+    M
+  } else{
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M
+  }
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VAR DISCRETAS
+
+tabla_freq2<-function(x,y,na="ifany",prop=0, suma=c("filas","col")){
+  if (prop==0) {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    M
+  } else if (prop==1 & suma=="filas") {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 2:ncol(M)) {
+      M[,i]=M[,i]/M[,ncol(M)]
+    }
+    M
+  } else {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 1:nrow(M)) {
+      M[i,2:ncol(M)]=M[i,2:ncol(M)]/M[nrow(M),2:ncol(M)]
+    }
+    M 
+  }
+
+}
+
+```
+
+
+
+# {.tabset}
+
+## Cargue de datos y preparación de los datos
+
+```{r}
+
+# CARGUE DE LA BD
+load("performance.RData")
+
+str(base_f)
+
+# CONVERTIR EN FACTOR LAS VARIABLES QUE HAGAN FALTA
+base_f$Medu = factor(base_f$Medu, levels=c(1,2,3,4),  labels=c("None or primary education", "5th to 9th grade", "secondary education ", "higher education"))
+base_f$Fedu = factor(base_f$Fedu, levels=c(1,2,3,4),  labels=c("None or primary education", "5th to 9th grade", "secondary education ", "higher education"))
+base_f$traveltime = factor(base_f$traveltime, levels=c(1,2,3),  labels=c("< 15 min", "15 to 30 min", "> 30 min"))
+base_f$absences = factor(base_f$absences, levels=c(1,2,3,4),  labels=c("0 to 5 absences", "6 to 10 absences", "11 to 20 absences", "> 20 absences"))
+
+```
+```{r}
+
+base_f$age=as.integer(base_f$age)
+base_f$age2=ifelse(base_f$age>17,"18 o más",base_f$age)
+table(base_f$age2)
+
+base_f$age2=as.character(base_f$age2)
+base_f$age2=factor(base_f$age2)
+
+
+```
+
+
+## Análisis univariado
+
+```{r, include=FALSE}
+
+descriptivas(base_f$G3)
+
+```
+
+### G3 (Calificación en matemáticas) - Variable dependiente
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+#boxplot:
+g1=ggplot(base_f, aes(y=G3))+
+  geom_boxplot(fill="steelblue")+
+  coord_flip()+
+  labs(y="")+
+  scale_y_continuous(limits = c(0,20))+
+  theme_base()+
+  theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())
+
+TABLA_G3=tabla_freq(base_f$G3,0)
+
+#FRECUENCIA ABSOLUTA
+g2=ggplot(TABLA_G3, aes(x=Categoría, y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Calificación",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,60), breaks = seq(0,60,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+grid.arrange(g1,g2)
+
+```
+
+Teniendo en cuenta el diagrama de cajas, se puede observar que la media y la mediana se situan en una clasificación de aproxidamadamente de 10, además, apartir de la gráfica de barras, es probable que las clasificaciones se rigen bajo una distribución normal. Para asegurarse, al realizar la prueba de normalidad Anderson-Darling, no se puede rechazar la hipótesis nula y concluimos que **no se tiene evidencia suficiente para decir que G3 sigue una distribución normal** debido a que el valor-p es menor que nuestro alfa (0.05).
+
+```{r}
+
+ad.test(base_f$G3)
+
+```
+
+### Sex 
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_SEXO=tabla_freq(base_f$sex,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_SEXO, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Sexo")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+Podemos decir que la proporción de hombres y mujeres es bastante equitativa, sin embargo, predominan las mujeres.
+
+### Age
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_EDAD=tabla_freq(base_f$age2,0)
+
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_EDAD, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Edad",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+La mayor cantidad de la poblcación cuenta con 16 años y la menor son los muchachos de 19 o más años.
+
+### Address
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_ADDRESS=tabla_freq(base_f$address,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_ADDRESS, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Dirección")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+Existe una muchísima mayor población de estudiantes que viven en zona urbana que en zona rural.
+
+### Pstatus
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_PSTATUS=tabla_freq(base_f$Pstatus,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_PSTATUS, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Estado de los padres",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+La mayoría de los padres de los estudiantes viven juntos.
+
+### Medu
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_MEDU=tabla_freq(base_f$Medu,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_MEDU, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Nivel de educación de la madre")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+Para la educación de la madre predomina que tuvieron una educación superior y para la menor población la educación de la madre no tuvo ninguna educación o solamente hicieron la primaria.
+
+### Fedu
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_FEDU=tabla_freq(base_f$Fedu,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_FEDU, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Nivel de educación del padre")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+
+```
+La proporción de educación de los padres es muy similar, sin embargo, predominan los que superaron la secundaria y para la menor población fueron los que no tuvieron ninguna educación o hicieron solo la primaria.
+
+### Reason
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_REASON=tabla_freq(base_f$reason,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_REASON, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Razón para entrar al colegio")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+La mayoría de estudiantes entraron al colegio por los cursos que veían en este y la minoría entraron por otra razón.
+
+### TravelTime
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_TRAVELTIME=tabla_freq(base_f$traveltime,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_TRAVELTIME, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiempo de viaje",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+
+```
+
+
+### Paid
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_PAID=tabla_freq(base_f$paid,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_PAID, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Pagó clases extra de matemáticas")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+La proporción de los estudiantes que pagaron clases extra y los que no es muy equitativa, sin embargo, predominan los estudiantes que no las pagaron.
+
+### Internet
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_INTERNET=tabla_freq(base_f$internet,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_INTERNET, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Estudiantes tienen internet",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+La gran mayoría de estudiantes cuentan con internet en casa.
+
+### Absences
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_ABSENCES=tabla_freq(base_f$absences,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_ABSENCES, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Faltas a clase")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+La mayoría de los estudiantes tuvieron entre 0 y 5 ausencias, por otra parte, la minoría de los esutiantes tuvieron más de 20 ausencias.
+
+## Análisis bivariado
+
+### G3 vs Sexo
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+descriptivas2(base_f$G3, base_f$sex)
+ggplot(base_f, aes(x=sex, y=G3))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Sexo del estudiante",y="Calificación")+
+    theme_base()
+
+```
+
+Se puede decir que los hombres obtienen una calificación más alta que las mujeres.
+
+### G3 vs Age
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+descriptivas2(base_f$G3, base_f$age2)
+ggplot(base_f, aes(x=age2, y=G3))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Edad",y="Calificación")+
+    theme_base()
+
+```
+
+Podemos decir que los estudiantes que tienen 15 años sacan mejores calificaciones, además, después siguen los estudiantes que tienen 16 años debido a su mejor desempeño en el tercer cuartil, por último, los estudiantes que tienen 18 o más años, por la mediana, se deduce que sacan menores calificaciones.
+
+### G3 vs Medu
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+descriptivas2(base_f$G3, base_f$Medu)
+ggplot(base_f, aes(x=G3, fill=Medu))+
+    geom_density(alpha=0.5)+
+    labs(x="Calificación", fill="Educación de la madre")+
+    theme_base()
+
+```
+
+Apartir de la gráfica, se puede decir que a mayor educación de la madre, mejores serán las calificaciones de los hijos.
+
+### G3 vs Internet
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+descriptivas2(base_f$G3, base_f$internet)
+ggplot(base_f, aes(x=internet, y=G3))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Internet",y="Calificación")+
+    theme_base()
+
+```
+
+Se puede inferir por la gráfica que los estudiantes que sí tenían internet sacaron mejores calificaciones.
+
+## Conclusiones
+
+- **Del análisis univariado se dedujo que** los estudiantes de grado décimo sus notas de matemáticas no tienen una distribución normal, además de 357 estudiantes el 63% aprobó el curso. Hay una leve mayor proporción de mujeres que hombres. La proporción de la edad de los estudiantes es muy similar, sin embargo, predominan los estudiantes que tienen 16 años. La mayoría de los estudiantes viven en zona urbana, sus padres están juntos, sus madres tienen una escolaridad de educación superior, sus padres han cursado los grados de quinto a noveno grado; la mayoría entraron al colegio por sus cursos, viven a menos de 15 minutos del colegio, no pagan clases extra, tienen internet y faltaron entre 0 y 5 veces a clases.
+
+- **Del análisis bivariado se dedujo que** todas las variables explicativas (las que dijo el profe) están asociadas a las calificaciones en matemáticas de los estudiantes de décimo grado: Ser hombre, tener quince años, mientras mayor escolaridad de la madre, mejores notas sacará el estudiante y tener internet está relacionado con una mayor nota. 
+
+
+## Bono 
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+base_f$calificacion = ifelse(base_f$G3 >12, "Aprobó", "No aprobó")
+base_f$calificacion = factor(base_f$calificacion)
+TABLA_CALIFICACION = tabla_freq(base_f$calificacion, 0)
+
+ggplot(TABLA_CALIFICACION, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Calificación cualitativa")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+
+```
+
+La mayoría de los estudiantes no aprobaron el curso.
+
+### Calificación vs Medu
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_GRADE=as.data.frame(prop.table(table(base_f$Medu,base_f$calificacion),1))
+
+ggplot(TABLA_GRADE, aes(x=Var1, y=Freq, fill=Var2))+
+geom_bar(stat = "identity", color="black")+
+ labs(x="Educación de la madre",y="Frecuencia", fill="Aprobación del curso")+
+scale_fill_brewer(palette = "Greens")+
+scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), labels = percent)+
+geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+coord_flip()+
+theme_base()+
+theme(legend.position="bottom")
+
+```
+
+Esta información sugiere que es más frecuente encontrar estudiantes que aprobaron el curso cuando la educación de la madre es mayor.
+
+
+### Calificación vs Absences
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_GRADE=as.data.frame(prop.table(table(base_f$absences,base_f$calificacion),1))
+
+ggplot(TABLA_GRADE, aes(x=Var1, y=Freq, fill=Var2))+
+geom_bar(stat = "identity", color="black")+
+ labs(x="Ausencias del estudiante a clase",y="Frecuencia", fill="Aprobación del curso")+
+scale_fill_brewer(palette = "Greens")+
+scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), labels = percent)+
+geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+coord_flip()+
+theme_base()+
+theme(legend.position="bottom")
+
+```
+
+Esta información sugiere que es más frecuente encontrar estudiantes que aprobaron el curso cuando tuvieron menos ausencias.
+
+### Clasificación vs Paid
+
+```{r, out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_GRADE=as.data.frame(prop.table(table(base_f$paid,base_f$calificacion),1))
+
+ggplot(TABLA_GRADE, aes(x=Var1, y=Freq, fill=Var2))+
+geom_bar(stat = "identity", color="black")+
+ labs(x="Pagó clases particulares",y="Frecuencia", fill="Aprobación del curso")+
+scale_fill_brewer(palette = "Greens")+
+scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), labels = percent)+
+geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+coord_flip()+
+theme_base()+
+theme(legend.position="bottom")
+
+```
+
+Esta información sugiere que así se hayan pagado clases particulares o no, los estudiantes aprueban el curso con una proporción muy similar.
