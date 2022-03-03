@@ -1,5 +1,5 @@
 ---
-title: "Proyecto Final Análisis Exploratorio de Datos"
+title: "Proyecto Final - Análisis Exploratorio de Datos, Universidad ICESI"
 author: "María Paula Fernández, Cristian Palechor, Jorge Antonio Morales"
 date: "21/2/2022"
 output: 
@@ -28,6 +28,9 @@ library(scales)
 library(ggthemes)
 library(mice)
 library(BBmisc)
+library(tidyverse)
+library(DT)
+library(kableExtra)
 
 descriptivas<- function(x){data.frame("MEDIDA"=c("Observaciones", "Mínimo", "1er Q", "Media", "Mediana", "Desv Est", "3er Q", "Máximo", "Asimetría", "Curtosis", "atípico leve<", "atípico leve>","atípico extremo<","atípico extremo>", "Err Est Media", "IC(95%) Media Up", "IC(95%) Media Down"),"VALOR"=format(c(length(na.omit(x)), min(na.omit(x)), quantile(na.omit(x), prob=0.25), mean(na.omit(x)), median(na.omit(x)), sd(na.omit(x)), quantile(na.omit(x), prob=0.75), max(na.omit(x)), skewness(na.omit(x)), kurtosis(na.omit(x)), (2.5*quantile(na.omit(x),prob=0.25)-1.5*quantile(na.omit(x), prob=0.75)),(2.5*quantile(na.omit(x),prob=0.75)-1.5*quantile(na.omit(x), prob=0.25)),(4*quantile(na.omit(x),prob=0.25)-3*quantile(na.omit(x), prob=0.75)),(4*quantile(na.omit(x),prob=0.75)-3*quantile(na.omit(x), prob=0.25)), ((sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))+1.96*(sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))-1.96*((sd(na.omit(x))/sqrt(length(na.omit(x))))))), scientific = F))}
 #FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS
@@ -116,13 +119,13 @@ tabla_freq2<-function(x,y,na="ifany",prop=0, suma=c("filas","col")){
 }
 ```
 
-## Introducción (primera versión)
+## Introducción
 
-Debido a la pandemia del COVID-19 que asotó al mundo en el 2020, muchos eventos masivos se han visto afectados, entre ellos el futbol. Es por esto que se ha decidido realizar un estudio con el propósito de saber el impacto que tiene el público en los jugadores a la hora del partido cuando éste se encuentra en puerta cerrada jugando de local en la liga inglesa. 
+Debido a la pandemia del COVID-19 que asotó al mundo en el 2020, muchos eventos masivos se han visto afectados, entre ellos el futbol. Es por esto que se ha decidido realizar un estudio con el propósito de saber el impacto que tiene el público en los jugadores que juegan de local a la hora del partido cuando éste se encuentra en la Premier League.
 
-Debido a lo anterior, el objetivo principal para esta primera parte del informe es analizar los datos de los partidos de la liga inglesa desde el año 2018 hasta el 2021. Se realizará el análisis exploratorio de los datos para verificar anomalías y limpiar los datos.
+Debido a lo anterior, el objetivo principal para esta primera parte del informe es realizar el análisis exploratorio de los partidos de la liga inglesa desde el año 2018 hasta el 2021, verificando y limpiando cualquier tipo de anomalías.
 
-La estructura del documento consta en describir cada una de las variables de la base de datos, detectar las anomalías que se presenten dentro de ella, crear nuevas variables que puedan influir con la información y por último, realizar algunas conclusiones con sus recomendaciones.
+La estructura del presente documento consta en describir cada una de las variables de la base de datos, detectar las anomalías que se presenten dentro de ella, crear nuevas variables que puedan influir con la información y por último, realizar algunas conclusiones con sus recomendaciones.
 
 ```{r, include=FALSE}
 
@@ -133,22 +136,24 @@ inglesa_3 = read_excel("Inglesa.xlsx", sheet = "20-21")
 
 ```
 
-
 ## Sobre los datos
 
 El repositorio de los datos cuentan con tres bases de datos independientes que corresponden a los partidos disputados por la liga inglesa entre los años 2018 - 2019 (primera base de datos con 380 registros), 2020 - 2021 (segunda base de datos con 383 registros) y 2020 - 2021 (tercera base de datos con 385 registros).
 
-La primera base de datos cuenta con 62 variables que representan a los datos más característicos del partido y las probabilidades según diferentes casas de apuestas. Por otra parte, tanto la segunda y tercera base de datos cuenta con 106 variables idénticas que representan también a los datos más característicos del juego y las diferentes probabilidades según las casas de apuestas.
+La primera base de datos posee 62 variables que representan a los datos más característicos del partido y las probabilidades según diferentes casas de apuestas. Por otra parte, tanto la segunda y tercera base de datos cuenta con 106 variables idénticas que muestran también los datos más característicos del juego y las diferentes probabilidades según las casas de apuestas.
 
-Con el fin de tener un mejor entendimiento de la información, se decidió cambiar la estructura de los datos, separando cada partido según el tipo de juego de los equipos. Esto redujo la cantidad de variables que representan las características de los partidos y duplicó el número de registros debido a la clasificación. En cuanto a las columnas que representan las probabilidades de las casas de apuestas, se llegó a la conclusión de omitirlas debido a que éstas no influyen en el impacto que tiene en los equipos que juegan de local cuando hay puerta cerrada.
+Con el propósito de cumplir con los objetivos del proyecto, se seleccionaron las variables de interés que tengan que ver directamente con el rendimiento de los equipos durante ciertos periodos de tiempo (antes, durante y después de la pandemia). En cuanto a las columnas que representan las probabilidades de las casas de apuestas, se llegó a la conclusión de omitirlas debido a que éstas no influyen en el impacto que tiene en los equipos que juegan de local cuando hay puerta cerrada.
 
-```{r}
+Después de haber hecho la selección de las variables de interés y unir las tres bases de datos, el dataset general cuenta con 19 columnas y 1148 registros. Es con esta información que se procederá a trabajar a lo largo de este informe.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
 #CREAR TABLA DE LAS VARIABLES
 variables <- read_excel("Variables.xlsx")
-variables
+variables %>%
+  kbl() %>%
+  kable_styling()
 
 ```
-Finalmente, después de unir las tres bases de datos, que contaban con los mismas variables en cada una, cuenta con 11 columnas y 1148 registros.
 
 ```{r, include=FALSE}
 
@@ -162,37 +167,48 @@ inglesa_final = inglesa_final[ , c(2, 4:11, 15:24)]
 
 ```
 
-
 ## Detección de anomalías
+
+Existen 7 filas duplicadas por lo cual se procede a eliminarlas.
 
 ```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
 
 #Revisa duplicados
-tabla_freq(duplicated(inglesa_final))
+tabla_freq(duplicated(inglesa_final)) %>%
+  kbl() %>%
+  kable_styling()
+
+#Elimina duplicados
+inglesa_final = inglesa_final[!duplicated(inglesa_final),]
+
+```
+
+Por otra parte, la fecha poseía una anomalía de tipo **Formato de las variables no coincide con su tipo de variable**, por lo tanto, se realizó el respectivo casteo a su variable Date.
+
+```{r, include=FALSE}
 
 #Revisa tipo de variable
-str(inglesa_final)
+str(inglesa_final) %>%
+  kbl() %>%
+  kable_styling()
 
 inglesa_final$Date = as.Date(inglesa_final$Date, format="%d-%m-%y")
 
 ```
 
+Además, se pueden observar que existen valores nulos en todos los campos menos para las fechas, sin embargo, la proporción de estos con base en el total no es tan alta.
 
-Existen 7 filas duplicadas por lo cual se procede a eliminarlas.Por otra parte, para todas las variables no se encontraron anomalías de tipo *Formato de las variables no coincide con su tipo de variable*, por lo tanto, se analizará variable por variable en busca de cualquier tipo de anomalía:
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
 
-
-```{r, include=FALSE}
-
-#Elimina duplicados
-inglesa_final = inglesa_final[!duplicated(inglesa_final),]
-
+capture.output(aggr(inglesa_final, numbers=T, prop=F,sortVars = T,cex.axis = 0.7), file=tempfile())
 
 ```
 
+Una vez hecho esto, se procede a revisar todas las variables en búsqueda de algún tipo de anomalía:
 
-### Date
+#### - Variable Date
 
-```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+```{r include=FALSE}
 
 summary(inglesa_final$Date)
 
@@ -200,11 +216,11 @@ summary(inglesa_final$Date)
 
 Se puede observar que no se encuentran datos atípicos, ni inválidos, además de que no posee inconsistencias ni campos vacíos.
 
-### HomeTeam
+#### - Variable HomeTeam
 
-Para los equipos locales no existen valores atípicos, inválidos, ni con errores de digitación. No obstante, se halló un campo vacío que corresponde al 0,087% de los datos, por tanto se procede lo tomaremos como un MCAR y realizaremos un Listwise deletion.
+Para los equipos locales no existen valores atípicos, inválidos, ni con errores de digitación. No obstante, se halló un campo vacío que corresponde al 0,087% de los datos, por tanto se procede lo tomaremos como un MCAR y se realizará un Listwise deletion.
 
-```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+```{r, include=FALSE}
 
 #Revisar anomalías
 tabla_freq(inglesa_final$HomeTeam)
@@ -214,88 +230,236 @@ inglesa_final = inglesa_final[!is.na(inglesa_final$HomeTeam),]
 
 ```
 
-### AwayTeam
+#### - Variable AwayTeam
 
 No existen anomalías.
 
-```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+```{r, include=FALSE}
 
-tabla_freq(inglesa_final$AwayTeam)
-
-```
-
-### FTHG
-
-Se obsreva un dato atípico, un dato inválido y 5 campos vacíos. Para este caso, se decide imputar basado en los marcadores oficiales de los partidos que se encuentran en otras bases de datos.
-
-```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
-
-summary(inglesa_final$FTHG)
+tabla_freq(inglesa_final$AwayTeam) 
 
 ```
+
+#### - Variable FTHG (Full Time Home Goals)
+
+Se observa un dato atípico, un dato inválido y 5 campos vacíos. Para este caso, se decide imputar basado en los marcadores oficiales de los partidos que se encuentran en otras bases de datos.
 
 ```{r, include=FALSE}
+# Resumen de la variable
+summary(inglesa_final$FTHG)
+```
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+# Gráfica de bigotes
+boxplot(inglesa_final$FTHG)
 
 # Guardamos los anómalos en un dataframe para analizarlos mejor
 anomalos_FTHG = inglesa_final[(inglesa_final$FTHG == 33 | inglesa_final$FTHG < 0 | is.na(inglesa_final$FTHG)),]
 
-boxplot(inglesa_final$FTHG)
-
 # Imputando datos con base en medios oficiales
 
 inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Crystal Palace" & inglesa_final$Date=="2020-10-18"]= 1
+inglesa_final$FTHG[inglesa_final$HomeTeam=="West Brom" & inglesa_final$Date=="2021-01-30"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Southampton" & inglesa_final$Date=="2021-05-11"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Cardiff" & inglesa_final$Date=="2018-09-02"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Watford" & inglesa_final$Date=="2018-09-02"]= 2
+inglesa_final$FTHG[inglesa_final$HomeTeam=="Bournemouth" & inglesa_final$Date=="2018-09-15"]= 4
 
 ```
 
-### FTHG
+#### - Variable FTAG (Full Time Away Goals)
 
-Se obsreva un dato atípico, un dato inválido y 5 campos vacíos. Para este caso, también se decide imputar basado en los marcadores oficiales de los partidos que se encuentran en otras bases de datos.
+```{r, include=FALSE}
+# Resumen de la variable
+summary(inglesa_final$FTAG)
+```
 
+Se observa un dato atípico, un dato inválido y 5 campos vacíos. Para este caso, también se decide imputar basado en los marcadores oficiales de los partidos que se encuentran en otras bases de datos.
 
 ```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
 
-summary(inglesa_final$FTAG)
-
-```
-```{r, include=FALSE}
+# Gráfica de bigotes
+boxplot(inglesa_final$FTAG)
 
 # Guardamos los anómalos en un dataframe para analizarlos mejor
 anomalos_FTAG = inglesa_final[(inglesa_final$FTAG == 27 | inglesa_final$FTAG < 0 | is.na(inglesa_final$FTAG)),]
 
-boxplot(inglesa_final$FTHG)
-
 # Imputando datos con base en medios oficiales
-
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
-inglesa_final$FTHG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 2
+inglesa_final$FTAG[inglesa_final$HomeTeam=="Liverpool" & inglesa_final$Date=="2019-10-27"]= 1
+inglesa_final$FTAG[inglesa_final$HomeTeam=="Sheffield United" & inglesa_final$Date=="2019-12-05"]= 2
+inglesa_final$FTAG[inglesa_final$HomeTeam=="Crystal Palace" & inglesa_final$Date=="2020-10-18"]= 1
+inglesa_final$FTAG[inglesa_final$HomeTeam=="West Brom" & inglesa_final$Date=="2021-01-30"]= 2
+inglesa_final$FTAG[inglesa_final$HomeTeam=="Cardiff" & inglesa_final$Date=="2018-09-02"]= 3
+inglesa_final$FTAG[inglesa_final$HomeTeam=="Watford" & inglesa_final$Date=="2018-09-02"]= 1
+inglesa_final$FTAG[inglesa_final$HomeTeam=="Bournemouth" & inglesa_final$Date=="2018-09-15"]= 2
 
 ```
 
-### FTR
+#### - Variable FTR (Full Time Result)
 
-No existen anomalías
+Con el propósito de no caer en inconsistencias se procede a recalcular la variable teniendo en cuenta los goles al finalizar el partido para los equipos locales y visitantes.
 
 ```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
 
-tabla_freq(inglesa_final$FTR)
+tabla_freq(inglesa_final$FTR) %>%
+  kbl() %>%
+  kable_styling()
+
+# SE RECALCULA DE NUEVO LA VARIABLE
+inglesa_final$FTR = ifelse((inglesa_final$FTHG > inglesa_final$FTAG), "H", ifelse((inglesa_final$FTHG < inglesa_final$FTAG), "A", "D"));
 
 ```
 
+#### - Variable HTHG y HTAG (Half Time Home Goals y Half Time Away Goals)
 
+No existen anomalías.
+
+```{r, include=FALSE}
+
+summary(inglesa_final$HTHG)
+summary(inglesa_final$HTAG)
+
+```
+
+#### - Variable HTR (Half Time Result)
+
+Con el propósito de no caer en inconsistencias se procede a recalcular la variable teniendo en cuenta los goles al finalizar el primer tiempo para los equipos locales y visitantes.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+tabla_freq(inglesa_final$HTR) %>%
+  kbl() %>%
+  kable_styling()
+
+# SE RECALCULA DE NUEVO LA VARIABLE
+inglesa_final$HTR = ifelse((inglesa_final$HTHG > inglesa_final$HTAG), "H", ifelse((inglesa_final$HTHG < inglesa_final$HTAG), "A", "D"));
+
+```
+
+#### - Variable HST y AST (Home Shot Target y Away Shot Target)
+
+Existen 7 campos vacíos que corresponden al 0.61% de los datos; estas anomalías las tomaremos como MCAR (Missing Complete at Random) y eliminaremos las filas.
+
+```{r, include=FALSE}
+
+summary(inglesa_final$HST)
+anomalias_HST = inglesa_final[(is.na(inglesa_final$HST)),]
+inglesa_final = inglesa_final[!(is.na(inglesa_final$HST)),]
+
+summary(inglesa_final$AST)
+
+```
+
+#### - Variable HF y AF (Home Faults y Away Faults)
+
+No existen anomalías.
+
+```{r, include=FALSE}
+
+summary(inglesa_final$HF)
+summary(inglesa_final$AF)
+
+```
+
+#### - Variable HC y AC (Home Corners y Away Corners)
+
+No existen anomalías.
+
+```{r, include=FALSE}
+
+summary(inglesa_final$HC)
+summary(inglesa_final$AC)
+
+```
+
+#### - Variable HY y AY (Home Yellow y Away Yellow)
+
+No existen anomalías.
+
+```{r, include= FALSE}
+
+summary(inglesa_final$HY)
+summary(inglesa_final$AY)
+
+```
+
+#### - Variable HR y AR (Home Red y Away Red)
+
+No existen anomalías.
+
+```{r, include=FALSE}
+
+summary(inglesa_final$HR)
+summary(inglesa_final$AR)
+
+```
+
+Teniendo en cuenta la siguiente gráfica, se puede comprobar que la base de datos está libre de campos vacíos.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+capture.output(aggr(inglesa_final, numbers=T, prop=F,sortVars = T,cex.axis = 0.7), file=tempfile())
+
+```
 
 ## Creación de variables
 
+#### Pandemic
+
+Una variable importante que serviría para el cumplimiento del objetivo del proyecto sería si el partido se jugó en pandemia o no, es por esto que se crea una nueva columna de tipo **Cualitativa nominal** denominada *Pandemic* para indicar dicho acontecimiento.
+
+Se escogerán los partidos que se jugaron en pandemia entre el 11 de marzo de 2020 y el 02 de diciembre de 2020. Según el gobierno Inglés, hubo un permiso para abrir los estadios apartir de la última fecha, pero los volvieron a cerrar desde el 14 de diciembre de 2020 hasta el 17 de mayo de 2021.
+
+Esta nueva variable corresponde al 61.7% partidos que **no** se jugaron a puerta cerrada y el 38.3% que **sí** lo hicieron.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+inglesa_final$Pandemic = ifelse((inglesa_final$Date > "2020-03-11" & inglesa_final$Date < "2020-12-02") | (inglesa_final$Date >= "2020-12-14" & inglesa_final$Date <= "2021-05-17"), "Sí", "No")
+
+tabla_freq(inglesa_final$Pandemic) %>%
+  kbl() %>%
+  kable_styling()
+
+```
+
+#### TeamSize
+
+Se decidió crear dos variables que representan el tamaño del equipo en cuanto al valor del mercado en euros, clasificando como *Grandes* aquellos equipos valorados por encima de 400 millones de euros y como *Pequeños* a los equipos inferiores a dicho valor.
+
+Estas variable cuentan con una proporción de 43.4% para equipos grandes y 56.6% para equipos pequeños, además de que son de tipo *Cualitativa nominal*.
+
+```{r, include=FALSE}
+
+inglesa_final$HomeTeamSize = ifelse((inglesa_final$HomeTeam == "Man United" | inglesa_final$HomeTeam == "Liverpool"| inglesa_final$HomeTeam == "Chelsea"| inglesa_final$HomeTeam == "Tottenham"| inglesa_final$HomeTeam == "Arsenal"| inglesa_final$HomeTeam == "Everton"| inglesa_final$HomeTeam == "Leicester"| inglesa_final$HomeTeam == "Wolves"| inglesa_final$HomeTeam == "Aston Villa"), "Grande", "Pequeño")
+
+inglesa_final$AwayTeamSize = ifelse((inglesa_final$AwayTeam == "Man United" | inglesa_final$AwayTeam == "Liverpool"| inglesa_final$AwayTeam == "Chelsea"| inglesa_final$AwayTeam == "Tottenham"| inglesa_final$AwayTeam == "Arsenal"| inglesa_final$AwayTeam == "Everton"| inglesa_final$AwayTeam == "Leicester"| inglesa_final$AwayTeam == "Wolves"| inglesa_final$AwayTeam == "Aston Villa"), "Grande", "Pequeño")
+
+```
+
+### Tabla de descripción de las nuevas variables
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+Variables_Nuevas <- read_excel("Variables Nuevas.xlsx")
+Variables_Nuevas %>%
+  kbl() %>%
+  kable_styling()
+
+```
+
 ## Conclusiones y recomendaciones
 
+La base de datos suministrada con la información de los partidos de la liga inglesa se revisó y se realizó su respectiva limpieza de datos, organizando los tipos de variables para que coincidieran con sus respectivas columnas. Se halló una perdida aleatoria de datos con los resultados del marcador para algunos partidos, sin embargo, siendo información fácil de acceder, se lograron obtener los resultados y adicionarlos en los faltantes. 
+
+Por otra parte, se encontró una perdida de datos en las variables de descripción de tiros al arco tanto para los locales como para los visitantes del 0.61%, por lo que se optó por realizar un listwise deletion debido a que dichas filas contenían campos vacíos en la mayoría de sus columnas. 
+
+Teniendo en cuenta lo anterior, se entrega la base de datos limpia de cualquier anomalía lista para ser empleada en los próximos pasos.
+
+```{r, include=FALSE}
+
+save(inglesa_final, file="base_datos_inglesa_final.RData")
+
+```
 
