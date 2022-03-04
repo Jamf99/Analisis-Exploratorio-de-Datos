@@ -3,7 +3,7 @@
     "path": "C:/Users/joran/Desktop/Cmd/Analisis-Exploratorio-de-Datos/Proyecto Final/Proyecto Final.Rmd",
     "project_path": "Proyecto Final.Rmd",
     "type": "r_markdown",
-    "hash": "453859767",
+    "hash": "1099730718",
     "contents": "",
     "dirty": false,
     "created": 1645478058880.0,
@@ -13,16 +13,16 @@
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "167,4",
-        "scrollLine": "150",
-        "last_setup_crc32": ""
+        "cursorPosition": "453,41",
+        "scrollLine": "450",
+        "last_setup_crc32": "C62472F7106e42e"
     },
     "folds": "",
-    "lastKnownWriteTime": 1645846373,
+    "lastKnownWriteTime": 1646360089,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1646192203436,
+    "last_content_update": 1646360089990,
     "read_only": false,
     "read_only_alternatives": []
 }

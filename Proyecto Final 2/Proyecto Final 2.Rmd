@@ -1,0 +1,440 @@
+---
+output: pdf_document
+fontsize: 12pt
+---
+
+
+\begin{titlepage}
+	\centering
+	\vspace{2cm}
+	{\scshape\LARGE Universidad Icesi\par}
+	\vspace{4cm}
+	{\huge\bfseries Análisis Exploratorio de Datos\par}
+	{\scshape\Large Proyecto Final\par}
+	\vspace{5cm}
+	{\Large\bfseries Autores:\par}
+	{\Large\itshape María Paula Fernández\par}
+	{\Large\itshape Cristian Palechor\par}
+	{\Large\itshape Jorge Antonio Morales\par}
+	\vspace{4cm}
+	{\large Facultad de Ingeniería\par}
+	{\large Maestría en Ciencia de Datos\par}
+	{\large Marzo de 2022\par}
+\end{titlepage}
+
+
+\newpage
+
+```{r, include=FALSE}
+library(reshape2)
+library(dplyr)
+library(e1071)
+library(Hmisc)
+library(inspectdf) 
+library(funModeling) 
+library(VIM)
+library(stringr)
+library(xtable) 
+library(ggplot2)
+library(directlabels)
+library(ggthemes)
+library(mice)
+library(BBmisc)
+library(car)
+library(nortest)
+library(corrplot)
+library(scales)
+library(gridExtra)
+library(GGally)
+
+descriptivas<- function(x){data.frame("MEDIDA"=c("Observaciones", "Mínimo", "1er Q", "Media", "Mediana", "Desv Est", "3er Q", "Máximo", "Asimetría", "Curtosis", "atípico leve<", "atípico leve>","atípico extremo<","atípico extremo>", "Err Est Media", "IC(95%) Media Up", "IC(95%) Media Down"),"VALOR"=format(c(length(na.omit(x)), min(na.omit(x)), quantile(na.omit(x), prob=0.25), mean(na.omit(x)), median(na.omit(x)), sd(na.omit(x)), quantile(na.omit(x), prob=0.75), max(na.omit(x)), skewness(na.omit(x)), kurtosis(na.omit(x)), (2.5*quantile(na.omit(x),prob=0.25)-1.5*quantile(na.omit(x), prob=0.75)),(2.5*quantile(na.omit(x),prob=0.75)-1.5*quantile(na.omit(x), prob=0.25)),(4*quantile(na.omit(x),prob=0.25)-3*quantile(na.omit(x), prob=0.75)),(4*quantile(na.omit(x),prob=0.75)-3*quantile(na.omit(x), prob=0.25)), ((sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))+1.96*(sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))-1.96*((sd(na.omit(x))/sqrt(length(na.omit(x))))))), scientific = F))}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS
+
+descriptivas2<-function(Continua,Categorías){
+  x1=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){length(na.omit(x))})
+  names(x1)=c("Categoría","Obs")
+  x2=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){min(na.omit(x))})
+  names(x2)=c("Categoría","Mínimo")
+  x3=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.25)})
+  names(x3)=c("Categoría","1er Q")
+  x4=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){median(na.omit(x))})
+  names(x4)=c("Categoría","Mediana")
+  x5=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){mean(na.omit(x))})
+  names(x5)=c("Categoría","Media")
+  x6=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.75)})
+  names(x6)=c("Categoría","3er Q")
+  x7=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){max(na.omit(x))})
+  names(x7)=c("Categoría","Máximo")
+  x8=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){sd(na.omit(x))})
+  names(x8)=c("Categoría","Desv Est")
+  x9=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){skewness(na.omit(x))})
+  names(x9)=c("Categoría","Asimetría")
+  x10=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){kurtosis(na.omit(x))})
+  names(x10)=c("Categoría","Curtosis")
+  cbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)[,-seq(3,19,2)]
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS EN SUBMUESTRAS
+  
+tabla_freq<- function(x,total=1,na="ifany"){
+  if (total==1) {
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",sum(M$`Freq. Abs.`),sum(M$`Freq. Rel.`))
+    M$`Freq. Rel.`=as.numeric(M$`Freq. Rel.`)
+    M$`Freq. Abs.`=as.numeric(M$`Freq. Abs.`)
+    M
+  } else{
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M
+  }
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VAR DISCRETAS
+
+tabla_freq2<-function(x,y,na="ifany",prop=0, suma=c("filas","col")){
+  if (prop==0) {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    M
+  } else if (prop==1 & suma=="filas") {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 2:ncol(M)) {
+      M[,i]=M[,i]/M[,ncol(M)]
+    }
+    M
+  } else {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 1:nrow(M)) {
+      M[i,2:ncol(M)]=M[i,2:ncol(M)]/M[nrow(M),2:ncol(M)]
+    }
+    M 
+  }
+
+}
+
+
+```
+
+```{r, include=FALSE}
+load("base_datos_inglesa_final.RData")
+```
+
+
+## Introducción (1RA VERSION)
+
+En el primer cuarto del año 2020 todo el mundo se vio afectado por virus sarc covid 19, paralizando la economía, eventos y demás situaciones “normales” a las cuales estábamos acostumbrados. Los eventos masivos se vieron fuertemente involucrados a pasar de un aforo 100% de capacidad a restringir por completo la capacidad de ocupación de los eventos.
+
+El objetivo del proyecto de analítica es revisar las bases de datos suministradas de la liga inglesa de futbol y analizar si se afecto la ventaja que tiene el equipo local al jugar en “casa” a puerta cerrada. 
+
+
+## Sobre los datos
+
+```{r}
+
+inglesa_final$FTHG = ifelse(inglesa_final$FTHG>=4, "4 o más", inglesa_final$FTHG)
+inglesa_final$FTHG = factor(inglesa_final$FTHG)
+
+inglesa_final$FTAG = ifelse(inglesa_final$FTAG>=4, "4 o más", inglesa_final$FTAG)
+inglesa_final$FTAG = factor(inglesa_final$FTAG)
+
+inglesa_final$HTHG = ifelse(inglesa_final$HTHG>=4, "4 o más", inglesa_final$HTHG)
+inglesa_final$HTHG = factor(inglesa_final$HTHG)
+
+inglesa_final$HTAG = ifelse(inglesa_final$HTAG>=4, "4 o más", inglesa_final$HTAG)
+inglesa_final$HTAG = factor(inglesa_final$HTAG)
+
+```
+
+
+## Resultados de la exploración de datos
+
+### Análisis Univariado
+
+#### Date
+
+```{r}
+
+ggplot(inglesa_final, aes(x=Date)) + geom_histogram(binwidth=30, colour="white") + scale_x_date(labels = date_format("%Y-%b"), breaks = seq(min(inglesa_final$Date)-5, max(inglesa_final$Date)+5, 30), limits = c(as.Date("2018-08-10"), as.Date("2021-05-23"))) + ylab("Cantidad de partidos") + xlab("Año y mes") + theme_bw() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+tabla_freq(inglesa_final$Date)
+
+```
+
+##### HomeTeam
+
+```{r}
+
+TABLA_HOMETEAM=tabla_freq(inglesa_final$HomeTeam,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_HOMETEAM, aes(x=reorder(Categoría, -`Freq. Abs.`), y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Equipos locales",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+##### AwayTeam
+
+```{r}
+
+TABLA_AWAYTEAM=tabla_freq(inglesa_final$AwayTeam,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_AWAYTEAM, aes(x=reorder(Categoría, -`Freq. Abs.`), y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Equipos visitantes",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+#### FTHG
+
+```{r}
+
+TABLA_FTHG=tabla_freq(inglesa_final$FTHG,0)
+
+#FRECUENCIA RELATIVA
+ggplot(TABLA_FTHG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del local al finalizar el partido",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_FTHG$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_FTHG$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+
+```
+
+La mayoría de los equipos locales hicieron 1 gol al finalizar el partido y la minoría hizo 4 o más goles.
+
+
+#### FTAG
+
+```{r}
+
+TABLA_FTAG=tabla_freq(inglesa_final$FTAG,0)
+
+#FRECUENCIA RELATIVA
+ggplot(TABLA_FTAG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del visitante al finalizar el partido",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_FTAG$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_FTAG$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+La mayoría de los equipos visitantes hicieron 1 gol al finalizar el partido y la minoría hizo 4 o más goles.
+
+#### FTR
+
+```{r}
+
+TABLA_FTR=tabla_freq(inglesa_final$FTR,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_FTR, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Marcador final del partido")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+Se puede decir que los locales ganan más partidos.
+
+#### HTHG
+
+```{r}
+
+TABLA_HTHG=tabla_freq(inglesa_final$HTHG,0)
+
+#FRECUENCIA RELATIVA
+ggplot(TABLA_HTHG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del local al finalizar el primer tiempo",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HTHG$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HTHG$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+
+#### HTAG
+
+```{r}
+
+TABLA_HTAG=tabla_freq(inglesa_final$HTAG,0)
+
+#FRECUENCIA RELATIVA
+ggplot(TABLA_HTAG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del visitante al finalizar el primer tiempo",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HTAG$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HTAG$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+
+#### HTR
+
+```{r}
+
+TABLA_HTR=tabla_freq(inglesa_final$HTR,0)
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_HTR, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Marcador final el primer tiempo")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5)
+
+```
+
+#### HST
+
+```{r}
+
+descriptivas(inglesa_final$HST)
+
+TABLA_HST=tabla_freq(inglesa_final$HST,0)
+
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_HST, aes(x=Categoría, y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiros al arco por parte del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,200), breaks = seq(0,200,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+Distribución asimétrica positiva
+
+```{r}
+ad.test(inglesa_final$HST)
+```
+
+#### AST
+
+```{r}
+
+descriptivas(inglesa_final$AST)
+
+TABLA_AST=tabla_freq(inglesa_final$AST,0)
+
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_AST, aes(x=Categoría, y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiros al arco por parte del visitante",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,220), breaks = seq(0,200,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+#### HF
+
+
+```{r}
+
+descriptivas(inglesa_final$HF)
+
+TABLA_HF=tabla_freq(inglesa_final$HF,0)
+
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_HF, aes(x=Categoría, y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Faltas del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,150), breaks = seq(0,200,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+
+```
+
+
+#### AF
+
+
+```{r}
+
+descriptivas(inglesa_final$AF)
+
+TABLA_AF=tabla_freq(inglesa_final$AF,0)
+
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_AF, aes(x=Categoría, y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Faltas del visitante",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,150), breaks = seq(0,200,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+
+```
+
+
+
+#### HC
+
+```{r}
+
+descriptivas(inglesa_final$HC)
+
+TABLA_HC=tabla_freq(inglesa_final$HC,0)
+
+#FRECUENCIA ABSOLUTA
+ggplot(TABLA_HC, aes(x=Categoría, y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiros de esquina del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,160), breaks = seq(0,200,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+
+```
+
+
+#### AC
+
+
+#### HY
+
+
+
+#### AY
+
+
+
+#### HR
+
+
+
+
+#### AR

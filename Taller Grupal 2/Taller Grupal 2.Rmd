@@ -174,7 +174,7 @@ g1=ggplot(base_f, aes(y=G3))+
   theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())
 
 TABLA_G3=tabla_freq(base_f$G3,0)
-
+  
 #FRECUENCIA ABSOLUTA
 g2=ggplot(TABLA_G3, aes(x=Categoría, y=`Freq. Abs.`))+
   geom_bar(stat = "identity", fill="steelblue", color="black")+
