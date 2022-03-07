@@ -1,0 +1,1025 @@
+---
+output: pdf_document
+fontsize: 12pt
+lang: es-ES
+---
+
+\begin{titlepage}
+	\centering
+	\vspace{2cm}
+	{\scshape\LARGE Universidad Icesi\par}
+	\vspace{4cm}
+	{\huge\bfseries Análisis Exploratorio de Datos\par}
+	{\scshape\Large Proyecto Final\par}
+	\vspace{5cm}
+	{\Large\bfseries Autores:\par}
+	{\Large\itshape María Paula Fernández\par}
+	{\Large\itshape Cristian Palechor\par}
+	{\Large\itshape Jorge Antonio Morales\par}
+	\vspace{4cm}
+	{\large Facultad de Ingeniería\par}
+	{\large Maestría en Ciencia de Datos\par}
+	{\large Marzo de 2022\par}
+\end{titlepage}
+
+
+\newpage
+
+```{r, include=FALSE}
+
+library(rlang)
+library(readxl)
+library(reshape2)
+library(dplyr)
+library(e1071)
+library(Hmisc)
+library(inspectdf) 
+library(funModeling) 
+library(VIM)
+library(stringr)
+library(xtable) 
+library(ggplot2)
+library(directlabels)
+library(ggthemes)
+library(mice)
+library(BBmisc)
+library(car)
+library(nortest)
+library(corrplot)
+library(scales)
+library(gridExtra)
+library(GGally)
+library(DT)
+library(kableExtra)
+
+
+descriptivas<- function(x){data.frame("MEDIDA"=c("Observaciones", "Mínimo", "1er Q", "Media", "Mediana", "Desv Est", "3er Q", "Máximo", "Asimetría", "Curtosis", "atípico leve<", "atípico leve>","atípico extremo<","atípico extremo>", "Err Est Media", "IC(95%) Media Up", "IC(95%) Media Down"),"VALOR"=format(c(length(na.omit(x)), min(na.omit(x)), quantile(na.omit(x), prob=0.25), mean(na.omit(x)), median(na.omit(x)), sd(na.omit(x)), quantile(na.omit(x), prob=0.75), max(na.omit(x)), skewness(na.omit(x)), kurtosis(na.omit(x)), (2.5*quantile(na.omit(x),prob=0.25)-1.5*quantile(na.omit(x), prob=0.75)),(2.5*quantile(na.omit(x),prob=0.75)-1.5*quantile(na.omit(x), prob=0.25)),(4*quantile(na.omit(x),prob=0.25)-3*quantile(na.omit(x), prob=0.75)),(4*quantile(na.omit(x),prob=0.75)-3*quantile(na.omit(x), prob=0.25)), ((sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))+1.96*(sd(na.omit(x))/sqrt(length(na.omit(x))))), (mean(na.omit(x))-1.96*((sd(na.omit(x))/sqrt(length(na.omit(x))))))), scientific = F))}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS
+
+descriptivas2<-function(Continua,Categorías){
+  x1=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){length(na.omit(x))})
+  names(x1)=c("Categoría","Obs")
+  x2=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){min(na.omit(x))})
+  names(x2)=c("Categoría","Mínimo")
+  x3=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.25)})
+  names(x3)=c("Categoría","1er Q")
+  x4=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){median(na.omit(x))})
+  names(x4)=c("Categoría","Mediana")
+  x5=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){mean(na.omit(x))})
+  names(x5)=c("Categoría","Media")
+  x6=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){quantile(na.omit(x), prob =0.75)})
+  names(x6)=c("Categoría","3er Q")
+  x7=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){max(na.omit(x))})
+  names(x7)=c("Categoría","Máximo")
+  x8=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){sd(na.omit(x))})
+  names(x8)=c("Categoría","Desv Est")
+  x9=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){skewness(na.omit(x))})
+  names(x9)=c("Categoría","Asimetría")
+  x10=aggregate.data.frame(Continua, by=list(Categorías), FUN=function(x){kurtosis(na.omit(x))})
+  names(x10)=c("Categoría","Curtosis")
+  cbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)[,-seq(3,19,2)]
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VARIABLES CONTINUAS EN SUBMUESTRAS
+  
+tabla_freq<- function(x,total=1,na="ifany"){
+  if (total==1) {
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",sum(M$`Freq. Abs.`),sum(M$`Freq. Rel.`))
+    M$`Freq. Rel.`=as.numeric(M$`Freq. Rel.`)
+    M$`Freq. Abs.`=as.numeric(M$`Freq. Abs.`)
+    M
+  } else{
+    M=data.frame("Categoría"=table(x, useNA = na), "Rel"=prop.table(table(x,useNA = na)))[,-3]
+    names(M)=c("Categoría","Freq. Abs.","Freq. Rel.")
+    M
+  }
+}
+#FUNCIÓN PARA ESTADÍSTICAS DESCRIPTIVAS PARA VAR DISCRETAS
+
+tabla_freq2<-function(x,y,na="ifany",prop=0, suma=c("filas","col")){
+  if (prop==0) {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    M
+  } else if (prop==1 & suma=="filas") {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 2:ncol(M)) {
+      M[,i]=M[,i]/M[,ncol(M)]
+    }
+    M
+  } else {
+    M=as.data.frame.matrix(table(x, y, useNA = na))
+    M$Categoría=row.names(M)
+    rownames(M)=NULL
+    M=M[,c(ncol(M),1:ncol(M)-1)]
+    M$Categoría=as.character(M$Categoría)
+    M[nrow(M)+1,]=c("Total",colSums(M[,2:ncol(M)]))
+    M[,2:ncol(M)]=sapply(M[,2:ncol(M)], as.numeric)
+    M$Total=rowSums(M[,2:ncol(M)])
+    for (i in 1:nrow(M)) {
+      M[i,2:ncol(M)]=M[i,2:ncol(M)]/M[nrow(M),2:ncol(M)]
+    }
+    M 
+  }
+
+}
+
+
+```
+
+\tableofcontents
+
+
+\newpage
+
+## Introducción
+
+Debido a la pandemia del COVID-19 que asotó al mundo en el 2020, muchos eventos masivos se han visto afectados, entre ellos el futbol. Es por esto que se ha decidido realizar un estudio con el propósito de saber el impacto que tiene el público en los jugadores que juegan de local a la hora del partido cuando éste se encuentra en la Premier League.
+
+Debido a lo anterior, el objetivo principal para esta primera parte del informe es realizar el análisis exploratorio de los partidos de la Premier League, describiéndolos con el propósito de encontrar relación entre el rendimiento de los equipos locales y el aforo en los estadios durante la pandemia del Covid-19.
+
+Se recopilaron datos históricos de partidos de la Premier League desde el 2018 hasta mediados del 2021, estos datos fueron recolectados por la empresa propietaria del proyecto.
+
+La estructura del presente documento consta en: 1) introducir las variables clave para el cumpliemiento del objetivo del proyecto, analizándolas y limpiándolas de cualquier tipo de anomalías, 2) realizar un análisis exploratorio de los datos, empezando por hacer un análisis univariado de todas las variables y después un multivariado teniendo en cuenta nuestra variable dependiente con relación a las demás variables explicativas, y, por último, 3) un aparto de conclusiones y recomendaciones del respectivo informe.
+
+\newpage
+
+## Sobre los datos
+
+El repositorio de los datos cuenta con tres bases de datos independientes que corresponden a los partidos disputados por la liga inglesa entre los años 2018 - 2019 (primera base de datos con 380 registros), 2019 - 2020 (segunda base de datos con 383 registros) y 2020 - 2021 (tercera base de datos con 385 registros).
+
+La primera base de datos posee 62 variables que representan a los datos más característicos del partido y las probabilidades según diferentes casas de apuestas. Por otra parte, tanto la segunda y tercera base de datos cuenta con 106 variables idénticas que muestran también los datos más característicos del juego y las diferentes probabilidades según las casas de apuestas.
+
+Con el propósito de cumplir con los objetivos del proyecto, se seleccionaron las variables de interés que tienen que ver directamente con el rendimiento de los equipos durante ciertos periodos de tiempo (antes, durante y después de la pandemia). En cuanto a las columnas que representan las probabilidades de las casas de apuestas, se llegó a la conclusión de omitirlas debido a que éstas no influyen en el impacto que tiene en los equipos que juegan de local cuando hay puerta cerrada.
+
+Después de haber hecho la selección de las variables de interés y unir las tres bases de datos, el dataset general cuenta con 19 columnas y 1148 registros. Es con esta información que se procederá a trabajar a lo largo de este informe.
+
+Además, se agregaron 3 variables nuevas para el cumplimiento del objetivo del proyecto:
+
+-**Pandemic**, describe si el partido se jugó sin restricciones de público, a puerta cerrada o con aforo limitado.
+
+-**HomeTeamSize**, esta variable define si el equipo local es grande, mediano o pequeño:
+
+-- Los equipos grandes se clasificaron teniendo en cuenta la sumatoría de sus titulos y número de veces subcampeón es mayor o igual que veinte y haya quedado campeón en los últimos veinte años.
+
+-- Los equipos medianos se clasificaron teniendo en cuenta la sumatoría de sus titulos y número de veces subcampeón está entre diez y diecienueve.
+
+-- Los equipos pequeños se clasificaron teniendo en cuenta la sumatoría de sus titulos y número de veces subcampeón es menor que diez y no haya quedado campeón en los últimos veinte años.
+
+
+-**AwayTeamSize**, esta variable conserva la misma clasificación que para los equipos locales.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+#CREAR TABLA DE LAS VARIABLES
+variables <- read_excel("Variables.xlsx")
+variables %>%
+  kbl(booktabs = TRUE,format = "latex",digits = 1, longtable=TRUE,
+      caption = "\\label{tabla01}Tabla de variables definitivas") %>%
+  kable_styling(latex_options = c("striped", "condensed","repeat_header"),
+    position = "center",
+    full_width = FALSE,
+    repeat_header_text = "continuaci\\'on",
+    repeat_header_continued="contin\\'ua en la siguiente p\\'agina")
+
+```
+
+Con respecto a la detección y limpieza de anomalías de la base de datos, se halló una perdida aleatoria de datos (MCaR) con los resultados del marcador para algunos partidos, sin embargo, siendo información fácil de acceder, se lograron obtener los resultados y adicionarlos en los faltantes. Por otra parte, se encontró una perdida de datos en las variables de descripción de tiros al arco tanto para los locales como para los visitantes del 0.61%, por lo que se optó por realizar un listwise deletion debido a que dichas filas contenían campos vacíos en la mayoría de sus columnas. En resumen, de las 37 anomalías encontradas, 14 fueron imputadas mediante corroboración con demás medios oficiales y 23 fueron perdidas por Listwise Deletion debido a un MCaR.
+
+```{r, include=FALSE}
+
+# CARGUE DE LA BASE DE DATOS
+load("base_datos_inglesa_final.RData")
+
+# TRANSFORMACIÓN DE LOS DATOS
+inglesa_final$FTHG = ifelse(inglesa_final$FTHG>=4, "4 o más", inglesa_final$FTHG)
+inglesa_final$FTHG = factor(inglesa_final$FTHG)
+
+inglesa_final$FTAG = ifelse(inglesa_final$FTAG>=4, "4 o más", inglesa_final$FTAG)
+inglesa_final$FTAG = factor(inglesa_final$FTAG)
+
+inglesa_final$HTHG = ifelse(inglesa_final$HTHG>=4, "4 o más", inglesa_final$HTHG)
+inglesa_final$HTHG = factor(inglesa_final$HTHG)
+
+inglesa_final$HTAG = ifelse(inglesa_final$HTAG>=4, "4 o más", inglesa_final$HTAG)
+inglesa_final$HTAG = factor(inglesa_final$HTAG)
+
+inglesa_final$HY = ifelse(inglesa_final$HY>=3, "3 o más", inglesa_final$HY)
+inglesa_final$HY = factor(inglesa_final$HY)
+
+inglesa_final$AY = ifelse(inglesa_final$AY>=3, "3 o más", inglesa_final$AY)
+inglesa_final$AY = factor(inglesa_final$AY)
+
+inglesa_final$HR = ifelse(inglesa_final$HR>=1, "1 o más", inglesa_final$HR)
+inglesa_final$HR = factor(inglesa_final$HR)
+
+inglesa_final$AR = ifelse(inglesa_final$AR>=1, "1 o más", inglesa_final$AR)
+inglesa_final$AR = factor(inglesa_final$AR)
+
+```
+
+\newpage
+
+## Resultados de la exploración de datos
+
+### Análisis Univariado
+
+```{r, include=FALSE}
+
+ggplot(inglesa_final, aes(x=Date)) + geom_histogram(binwidth=30, colour="white") + scale_x_date(labels = date_format("%Y-%b"), breaks = seq(min(inglesa_final$Date)-5, max(inglesa_final$Date)+5, 30), limits = c(as.Date("2018-08-10"), as.Date("2021-05-23"))) + ylab("Cantidad de partidos") + xlab("Año y mes") + theme_bw() 
+
+TABLA_HOMETEAM=tabla_freq(inglesa_final$HomeTeam,0)
+
+ggplot(TABLA_HOMETEAM, aes(x=reorder(Categoría, -`Freq. Abs.`), y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Equipos locales",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle ("Participación de los equipos locales")
+
+TABLA_AWAYTEAM=tabla_freq(inglesa_final$AwayTeam,0)
+ggplot(TABLA_AWAYTEAM, aes(x=reorder(Categoría, -`Freq. Abs.`), y=`Freq. Abs.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Equipos visitantes",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))+
+  geom_text(aes(x=Categoría, y=`Freq. Abs.`, label=`Freq. Abs.`),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  ggtitle ("Participación de los equipos visitantes")
+  
+
+```
+
+
+#### Goles del local y goles del visitante al terminar el partido
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_FTHG=tabla_freq(inglesa_final$FTHG,0)
+
+ggplot(TABLA_FTHG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del local al finalizar el partido",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_FTHG$`Freq. Rel.`)>0.5,0.6,0.5)), breaks = seq(0,ifelse(max(TABLA_FTHG$`Freq. Rel.`)>0.5,0.6,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()+ ggtitle ("Marcador del local al terminar el partido")
+
+TABLA_FTAG=tabla_freq(inglesa_final$FTAG,0)
+
+ggplot(TABLA_FTAG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del visitante al finalizar el partido",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_FTAG$`Freq. Rel.`)>0.5,0.6,0.5)), breaks = seq(0,ifelse(max(TABLA_FTAG$`Freq. Rel.`)>0.5,0.6,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base() + ggtitle ("Marcador del visitante al terminar el partido")
+
+
+```
+
+Tanto para los equipos locales y visitantes, la mayoría hicieron un gol al finalizar el partido y la minoría hicieron cuatro o más goles. Por otra parte, los visitantes tienden a quedar más con un marcador de 0 goles.
+
+#### Marcardo final del partido
+
+Cabe resaltar que **A** es la victoria del visitante, **D** representa el empate y **H** es la vicoria del local.
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_FTR=tabla_freq(inglesa_final$FTR,0)
+
+ggplot(TABLA_FTR, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Resultado del partido")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5) 
+
+```
+
+De este gráfico podemos observar que los equipos que juegan de local tienden a ganar más partidos que los que juegan de visitante.
+
+
+\newpage
+#### Goles del local y visitante al medio tiempo
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_HTHG=tabla_freq(inglesa_final$HTHG,0)
+
+ggplot(TABLA_HTHG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del local al finalizar el primer tiempo",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HTHG$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HTHG$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+TABLA_HTAG=tabla_freq(inglesa_final$HTAG,0)
+
+ggplot(TABLA_HTAG, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Goles del visitante al finalizar el primer tiempo",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HTAG$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HTAG$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+De acuerdo con ambas gráficas, tanto para el local como para el visitante, la mayoría terminan el primer tiempo con cero goles y la minoría con cuatro más goles.
+
+\newpage
+#### Marcador del medio tiempo
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+TABLA_HTR=tabla_freq(inglesa_final$HTR,0)
+
+ggplot(TABLA_HTR, aes(x=2, y=`Freq. Rel.`, fill=Categoría)) +
+  geom_bar(stat="identity", width=1, color="black") +
+  coord_polar("y", start=0)+
+  labs(fill="Resultado del primer tiempo")+ 
+  theme_void()+
+  geom_text(aes(label = percent(`Freq. Rel.`)),position = position_stack(vjust = 0.5),color = "white", size=5)+
+  xlim(0.5, 2.5)
+
+```
+
+De este gráfico podemos observar que al finalizar el primer tiempo, la mayoría de los equipos quedan en empate y que la minoría resulta en una ventaja para los equipos visitantes.
+
+\newpage
+#### Tiros al arco del local
+
+```{r, include=FALSE}
+
+
+descriptivas(inglesa_final$HST)
+
+```
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+ggplot(inglesa_final, aes(y=HST))+
+  geom_boxplot(fill="steelblue")+
+  coord_flip()+
+  labs(y="")+
+  scale_y_continuous(limits = c(0,14))+
+  theme_base()+
+  theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+  ggtitle ("Tiros al arco por parte de los equipos locales")
+
+TABLA_HST=tabla_freq(inglesa_final$HST,0)
+
+ggplot(TABLA_HST, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiros al arco del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HST$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HST$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=0.5, fontface = "plain", size=4, angle=90, hjust=-0.2)+
+  theme_base() 
+
+```
+
+Apartir del diagrama de cajas, se puede observar que los equipos locales tienden a realizar 4.6 tiros al arco por partido. Además, según el diagrama de barras, los tiros al arco poseen una distribución asimétrica positiva.
+
+
+#### Tiros al arco del visitante
+
+```{r, include=FALSE}
+
+descriptivas(inglesa_final$AST)
+
+```
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+ggplot(inglesa_final, aes(y=AST))+
+  geom_boxplot(fill="steelblue")+
+  coord_flip()+
+  labs(y="")+
+  scale_y_continuous(limits = c(0,15))+
+  theme_base()+
+  theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+  ggtitle ("Tiros al arco por parte de los equipos visitantes")
+
+TABLA_AST=tabla_freq(inglesa_final$AST,0)
+
+ggplot(TABLA_AST, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiros al arco del visitante",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_AST$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_AST$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=0.5, fontface = "plain", size=4, angle=90, hjust=-0.2)+
+  theme_base() 
+
+```
+
+Apartir del diagrama de cajas, se puede observar que los equipos visitantes tienden a realizar 4 tiros al arco por partido. Además, según el diagrama de barras, los tiros al arco poseen una distribución asimétrica positiva.
+
+#### Faltas del local
+
+```{r, include=FALSE}
+
+descriptivas(inglesa_final$HF)
+
+```
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+ggplot(inglesa_final, aes(y=HF))+
+  geom_boxplot(fill="steelblue")+
+  coord_flip()+
+  labs(y="")+
+  scale_y_continuous(limits = c(0,23))+
+  theme_base()+
+  theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+  ggtitle ("Faltas por parte del equipo local")
+
+TABLA_HF=tabla_freq(inglesa_final$HF,0)
+
+ggplot(TABLA_HF, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Faltas del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HF$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HF$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=0.5, fontface = "plain", size=4, angle=90, hjust=-0.2)+
+  theme_base() 
+
+
+```
+
+```{r, include=FALSE}
+
+ad.test(inglesa_final$HF)
+
+```
+
+
+Teniendo en cuenta el diagrama de cajas, se puede ver que los equipos locales cometen aproximadamente 10.6 faltas por juego. Por otro lado, de acuerdo con la gráfica de barras, se muestra la frecuencia de faltas de los jugadores locales, por lo que es probable que los puntajes se rigen bajo una distribución normal, para asegurarse, al realizar la prueba de normalidad Anderson-Darling, no se puede rechazar la hipótesis nula y concluimos que **no se tiene evidencia suficiente para decir que el puntaje global sigue una distribución normal** debido a que el valor p es menor que nuestro alfa (0.05).
+
+
+#### Faltas del visitante
+
+```{r, include=FALSE}
+
+descriptivas(inglesa_final$AF)
+
+```
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
+
+ggplot(inglesa_final, aes(y=AF))+
+  geom_boxplot(fill="steelblue")+
+  coord_flip()+
+  labs(y="")+
+  scale_y_continuous(limits = c(0,24))+
+  theme_base()+
+  theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+  ggtitle ("Faltas por parte de los equipos visitantes")
+
+TABLA_AF=tabla_freq(inglesa_final$AF,0)
+
+ggplot(TABLA_AF, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Faltas del visitante",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_AF$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_AF$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=0.5, fontface = "plain", size=4, angle=90, hjust=-0.2)+
+  theme_base() 
+```
+
+```{r, include=FALSE}
+
+ad.test(inglesa_final$AF)
+
+```
+
+Teniendo en cuenta el diagrama de cajas, se puede ver que los equipos visitantes cometen aproximadamente 10.6 faltas por juego. Por otro lado, de acuerdo con la gráfica de barras, se muestra la frecuencia de faltas de los jugadores visitantes, por lo que es probable que los puntajes se rigen bajo una distribución normal, para asegurarse, al realizar la prueba de normalidad Anderson-Darling, no se puede rechazar la hipótesis nula y concluimos que **no se tiene evidencia suficiente para decir que el puntaje global sigue una distribución normal** debido a que el valor p es menor que nuestro alfa (0.05).
+
+
+#### Tiros de esquina del local
+
+```{r, include=FALSE}
+
+descriptivas(inglesa_final$HC)
+
+```
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=3}
+
+ggplot(inglesa_final, aes(y=HC))+
+  geom_boxplot(fill="steelblue")+
+  coord_flip()+
+  labs(y="")+
+  scale_y_continuous(limits = c(0,17))+
+  theme_base()+
+  theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+  ggtitle ("Tiros de esquina del local")
+
+```
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_HC=tabla_freq(inglesa_final$HC,0)
+
+ggplot(TABLA_HC, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiros de esquina del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HC$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HC$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=0.5, fontface = "plain", size=4, angle=90, hjust=-0.2)+
+  theme_base() 
+
+
+```
+
+Apartir del diagrama de cajas, se puede observar que los equipos locales tienden a realizar 5.6 tiros de esquina por partido. Además, según el diagrama de barras, los tiros de esquina de los locales poseen una distribución asimétrica positiva.
+
+#### Tiros de esquina del visitante
+
+```{r, include=FALSE}
+
+descriptivas(inglesa_final$AC)
+
+```
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=3}
+
+ggplot(inglesa_final, aes(y=AC))+
+  geom_boxplot(fill="steelblue")+
+  coord_flip()+
+  labs(y="")+
+  scale_y_continuous(limits = c(0,17))+
+  theme_base()+
+  theme(axis.text.y=element_blank(),axis.ticks.y=element_blank())+
+  ggtitle ("Tiros de esquina del visitante")
+
+```
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=5}
+
+TABLA_AC=tabla_freq(inglesa_final$AC,0)
+
+ggplot(TABLA_AC, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tiros de esquina del visitante",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_AC$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_AC$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)), vjust=0.5, fontface = "plain", angle=90, size=4, hjust=-0.2)+
+  theme_base() 
+
+
+```
+
+Apartir del diagrama de cajas, se puede observar que los equipos visitantes tienden a realizar 4.7 tiros de esquina por partido. Además, según el diagrama de barras, los tiros de esquina de los visitantes poseen una distribución asimétrica positiva.
+
+\newpage
+#### Tarjetas amarillas del local y del visitante
+
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_HY=tabla_freq(inglesa_final$HY,0)
+
+ggplot(TABLA_HY, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tarjetas amarillas del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HY$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HY$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+TABLA_AY=tabla_freq(inglesa_final$AY,0)
+
+ggplot(TABLA_AY, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tarjetas amarillas del visitante",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_AY$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_AY$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+
+```
+
+Según el gráfico de barras de las frecuencias de tarjetas amarillas, tanto para equipos locales como visitantes, es mucho más frecuente que haya una tarjeta amarilla. Sin embargo, para los locales es menos común que se cometan tres o más faltas, en cambio para los visitantes, es menos común que no se cometa ninguna falta.
+
+\newpage
+#### Tarjetas rojas de los equipos locales y visitantes
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_HR=tabla_freq(inglesa_final$HR,0)
+
+ggplot(TABLA_HR, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tarjetas rojas del local",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HR$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HR$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+TABLA_AR=tabla_freq(inglesa_final$AR,0)
+
+ggplot(TABLA_AR, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tarjetas rojas del visitante",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_AR$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_AR$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+
+```
+
+Para ambos equipos, local y visitante, la gran mayoría no cometen tarjetas rojas. Sin embargo, los equipos visitantes, son algo más propensos a cometer una o más tarjetas rojas.
+
+
+\newpage
+#### Tamaño del equipo
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_HOME_TEAM_SIZE=tabla_freq(inglesa_final$HomeTeamSize,0)
+
+ggplot(TABLA_HOME_TEAM_SIZE, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_HOME_TEAM_SIZE$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_HOME_TEAM_SIZE$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+De acuerdo con la gráfica de barras, la mayoría de los equipos son equipos pequeños y la minoría son los equipos grandes.
+
+#### Pandemia
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_PANDEMIC=tabla_freq(inglesa_final$Pandemic,0)
+
+ggplot(TABLA_PANDEMIC, aes(x=Categoría, y=`Freq. Rel.`))+
+  geom_bar(stat = "identity", fill="steelblue", color="black")+
+  labs(x="Estado del partido",y="Frecuencia")+
+  scale_y_continuous(limits = c(0,ifelse(max(TABLA_PANDEMIC$`Freq. Rel.`)>0.5,1,0.5)), breaks = seq(0,ifelse(max(TABLA_PANDEMIC$`Freq. Rel.`)>0.5,1,0.5),0.1), labels = percent)+
+  geom_text(aes(x=Categoría, y=`Freq. Rel.`, label=percent(`Freq. Rel.`)),vjust=-0.5, fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+Según la gráfica, la mayoría de los partidos se jugaron sin restricciones y la minoría se jugaron con aforo limitado.
+
+\newpage
+### Análisis Bivariado
+
+Para este caso, inicialmente se escogerá la variable dependiente que son todas aquellas que puedan medir el rendimiento de los equipos locales: **FTR, FTHG, HTHG, HTR, HST, HF, HC y AY** y las relacionaremos con las variables explicativas: **Pandemic** y **TeamSize** con el propósito de encontrar una solución al objetivo del proyecto de investigación.
+
+**NOTA:** Debido a que la muestra de partidos con aforo limitado es muy pequeña (30 datos) en comparación con puerta cerrada y sin restricciones, puede que la toma de decisiones se vea afectada y por ende, los resultados para esta variable no sean del todo representativos, sin embargo, se mantienen para revisar la tendencia de desempeño de los equipos a medida que sigan jugando más partidos en las temporadas.
+
+#### FTR y Pandemic
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_FTR_PANDEMIC=as.data.frame(prop.table(table(inglesa_final$Pandemic,inglesa_final$FTR),1))
+
+ggplot(TABLA_FTR_PANDEMIC, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Pandemia",y="Frecuencia", fill="Resultado")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()
+
+```
+Se puede observar que las victorias del equipo local disminuyen al cerrarse los estadios, por otro lado, cuando se reactiva la entrada del público, estos equipos locales subieron su tasa de victorias significativamente.
+
+```{r, include=FALSE}
+
+aforo_limitado = inglesa_final[inglesa_final$Pandemic == "Aforo limitado",]
+puerta_cerrada = inglesa_final[inglesa_final$Pandemic == "Puerta cerrada",]
+sin_restricciones = inglesa_final[inglesa_final$Pandemic == "Sin restricciones",]
+
+```
+
+\newpage
+#### FTR vs TeamSize
+```{r echo=FALSE,out.width='90%',fig.align='center',fig.pos='H', fig.height=9}
+
+TABLA_FTR_TEAMSIZE_AFOROLIMITADO=as.data.frame(prop.table(table(aforo_limitado$HomeTeamSize,aforo_limitado$FTR),1))
+TABLA_FTR_TEAMSIZE_PUERTACERRADA=as.data.frame(prop.table(table(puerta_cerrada$HomeTeamSize,puerta_cerrada$FTR),1))
+TABLA_FTR_TEAMSIZE_SINRESTRICCIONES=as.data.frame(prop.table(table(sin_restricciones$HomeTeamSize,sin_restricciones$FTR),1))
+
+g1=ggplot(TABLA_FTR_TEAMSIZE_AFOROLIMITADO, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Resultado")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("Con aforo limitado")
+
+g2=ggplot(TABLA_FTR_TEAMSIZE_PUERTACERRADA, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Resultado")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("A puerta cerrada")
+
+g3=ggplot(TABLA_FTR_TEAMSIZE_SINRESTRICCIONES, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Resultado")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("Sin restricciones")
+  
+grid.arrange(g1, g2, g3)
+
+
+```
+La tasa de victoria de los equipos locales medianos al jugar con aforo limitado se ve aumentada drásticamente, por otra parte, al jugarse con puerta cerrada o sin restricciones, se puede observar que se mantiene la proporción de mientras más grande el equipo local, más victorias obtendrá.
+
+
+#### FTHG y Pandemic
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_FTHG_PANDEMIC=as.data.frame(prop.table(table(inglesa_final$Pandemic,inglesa_final$FTHG),1))
+
+ggplot(TABLA_FTHG_PANDEMIC, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Pandemia",y="Frecuencia", fill="Goles local")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+Se puede observar que la cantidad de goles que anotaron los equipos locales se vió afectada al cerrar los estadios, además, al reabrir los estadios con aforos limitados, se vió un incremento considerable de goles, esto al parecer debido al impacto que tiene el público en los jugadores.
+
+\newpage
+#### FTHG vs TeamSize vs Pandemic
+
+```{r echo=FALSE,out.width='90%',fig.align='center',fig.pos='H', fig.height=9}
+TABLA_FTHG_TEAMSIZE_AFOROLIMITADO=as.data.frame(prop.table(table(aforo_limitado$HomeTeamSize,aforo_limitado$FTHG),1))
+TABLA_FTHG_TEAMSIZE_PUERTACERRADA=as.data.frame(prop.table(table(puerta_cerrada$HomeTeamSize,puerta_cerrada$FTHG),1))
+TABLA_FTHG_TEAMSIZE_SINRESTRICCIONES=as.data.frame(prop.table(table(sin_restricciones$HomeTeamSize,sin_restricciones$FTHG),1))
+
+g1=ggplot(TABLA_FTHG_TEAMSIZE_AFOROLIMITADO, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Goles tiempo completo")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=4)+
+  theme_base()+ggtitle("Con aforo limitado")
+
+g2=ggplot(TABLA_FTHG_TEAMSIZE_PUERTACERRADA, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Goles tiempo completo")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=4)+
+  theme_base()+ggtitle("A puerta cerrada")
+
+g3=ggplot(TABLA_FTHG_TEAMSIZE_SINRESTRICCIONES, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Goles tiempo completo")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=4)+
+  theme_base()+ggtitle("Sin restricciones")
+  
+grid.arrange(g1, g2, g3)
+```
+Se puede decir que, cuando no había restricciones, los equipos grandes anotaban más goles y los pequeños menos, sin embargo, al cerrar los estadios, la cantidad de goles para cualquier equipo se vio afectada en una disminución de goles totales, los equipos pequeños se vieron menos comprometidos. Se supone que la hinchada de los equipos pequeños es mucho menor que los demás, por ende no fueron alterados tanto su cantidad de goles al cerrar sus estadios. Además, al reabrir los estadios con aforo limitado, todos los equipos aumentaron su cantidad de goles considerablemente.
+
+#### HST vs Pandemic 
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+ggplot(inglesa_final, aes(x=Pandemic, y=HST))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Pandemia",y="Tiros al arco local")+
+    theme_base()
+```
+Teniendo en cuenta la gráfica, los tiros al arco de los equipos locales se vieron reducidos al cerrar los estadios, no obstante, al reabrirlos se nota una mejoría considerable con respecto a los partidos que jugaron a puerta cerrada y sin restricciones.
+
+\newpage
+#### HST vs TeamSize vs Pandemic
+
+```{r echo=FALSE,out.width='90%',fig.align='center',fig.pos='H', fig.height=9}
+
+g1=ggplot(sin_restricciones, aes(x=HomeTeamSize, y=HST))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Tiros al arco local")+
+    theme_base()+ggtitle("Sin restricciones")
+
+g2=ggplot(puerta_cerrada, aes(x=HomeTeamSize, y=HST))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Tiros al arco local")+
+    theme_base()+ggtitle("Puerta cerrada")
+
+g3=ggplot(aforo_limitado, aes(x=HomeTeamSize, y=HST))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Tiros al arco local")+
+    theme_base()+ggtitle("Aforo limitado")
+
+grid.arrange(g1,g2,g3)
+
+```
+
+Se observa que, sin restricciones, los equipos grandes hacían más tiros al arco y los pequeños menos, sin embargo, al cerrar los estadios, todos se vieron afectados en la misma proporción. Al abrir nuevamente los estadios, todos los equipos subieron la cantidad de tiros al arco, sobre todo los equipos medianos.
+
+#### HF vs Pandemic 
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+ggplot(inglesa_final, aes(x=Pandemic, y=HF))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Pandemia",y="Faltas del local")+
+    theme_base()
+```
+Apartir del diagrama de cajas, se observa que la cantidad de faltas aumentó cuando cerraron los estadios y volvió a su estado inicial cuando reabrieron los estadios.
+
+```{r, include=FALSE}
+# HF vs TeamSize vs Pandemic
+# NO EXISTE UNA RELACIÓN ENTRE LAS FALTAS Y EL TAMAÑO DE LOS EQUIPOS EN LAS TEMPORADAS DE PANDEMIA
+g1=ggplot(sin_restricciones, aes(x=HomeTeamSize, y=HF))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Faltas del local")+
+    theme_base()+ggtitle("Sin restricciones")
+
+g2=ggplot(puerta_cerrada, aes(x=HomeTeamSize, y=HF))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Faltas del local")+
+    theme_base()+ggtitle("Puerta cerrada")
+
+g3=ggplot(aforo_limitado, aes(x=HomeTeamSize, y=HF))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Faltas del local")+
+    theme_base()+ggtitle("Aforo limitado")
+
+grid.arrange(g1,g2,g3)
+
+```
+
+#### HC vs Pandemic 
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+ggplot(inglesa_final, aes(x=Pandemic, y=HC))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Pandemia",y="Tiros esquina local")+
+    theme_base()
+```
+Observamos que hubo una disminución de tiros de esquina al cerrar los estadios y un aumento levemente al reabrirlos con aforo limitado con respecto cuando no habían restricciones.
+
+```{r, include=FALSE}
+# HC vs TeamSize vs Pandemic
+# NO EXISTE UNA RELACIÓN ENTRE LOS TIROS DE ESQUINA Y EL TAMAÑO DE LOS EQUIPOS EN LAS TEMPORADAS DE PANDEMIA
+g1=ggplot(sin_restricciones, aes(x=HomeTeamSize, y=HC))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Tiros esquina local")+
+    theme_base()+ggtitle("Sin restricciones")
+
+g2=ggplot(puerta_cerrada, aes(x=HomeTeamSize, y=HF))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Tiros esquina local")+
+    theme_base()+ggtitle("Puerta cerrada")
+
+g3=ggplot(aforo_limitado, aes(x=HomeTeamSize, y=HF))+
+    geom_boxplot(fill="steelblue")+
+    labs(x="Tamaño del equipo",y="Tiros esquina local")+
+    theme_base()+ggtitle("Aforo limitado")
+
+grid.arrange(g1,g2,g3)
+
+```
+
+#### AY vs Pandemic 
+
+```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H', fig.height=4}
+
+TABLA_AY_PANDEMIC=as.data.frame(prop.table(table(inglesa_final$Pandemic,inglesa_final$AY),1))
+
+ggplot(TABLA_AY_PANDEMIC, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Pandemia",y="Frecuencia", fill="Tarjetas amarillas visitante")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+```
+Se observa que la cantidad de tarjetas amarillas de los equipos visitantes tuvo una disminución cuando se cerraron los estadios y cuando se reabrieron volvieron a la normalidad. Esto pudo haber ocurrido debido a la constante presión de la hinchada del local al arbitro para que éste los sancionara con más frecuencia.
+
+
+```{r, include=FALSE}
+# HY vs TeamSize vs Pandemic
+# NO EXISTE UNA RELACIÓN ENTRE LAS TARJETAS AMARILLAS Y EL TAMAÑO DE LOS EQUIPOS EN LAS TEMPORADAS DE PANDEMIA
+TABLA_HY_TEAMSIZE_AFOROLIMITADO=as.data.frame(prop.table(table(aforo_limitado$HomeTeamSize,aforo_limitado$HY),1))
+TABLA_HY_TEAMSIZE_PUERTACERRADA=as.data.frame(prop.table(table(puerta_cerrada$HomeTeamSize,puerta_cerrada$HY),1))
+TABLA_HY_TEAMSIZE_SINRESTRICCIONES=as.data.frame(prop.table(table(sin_restricciones$HomeTeamSize,sin_restricciones$HY),1))
+
+g1=ggplot(TABLA_HY_TEAMSIZE_AFOROLIMITADO, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Tarjetas amarillas")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("Con aforo limitado")
+
+g2=ggplot(TABLA_HY_TEAMSIZE_PUERTACERRADA, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Tarjetas amarillas")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("A puerta cerrada")
+
+g3=ggplot(TABLA_HY_TEAMSIZE_SINRESTRICCIONES, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Tarjetas amarillas")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("Sin restricciones")
+  
+grid.arrange(g1, g2, g3)
+```
+
+
+```{r, include=FALSE}
+# HR vs Pandemic
+# NO EXISTE UNA RELACIÓN CONSIDERABLE ENTRE LAS TARJETAS ROJAS Y LAS TEMPORADAS DE PANDEMIA
+TABLA_HR_PANDEMIC=as.data.frame(prop.table(table(inglesa_final$Pandemic,inglesa_final$HR),1))
+
+ggplot(TABLA_HR_PANDEMIC, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Pandemia",y="Frecuencia", fill="Tarjetas rojas")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()
+
+```
+
+
+```{r, include=FALSE}
+# HR vs TeamSize vs Pandemic
+# NO EXISTE UNA RELACIÓN ENTRE LAS TARJETAS ROJAS Y EL TAMAÑO DE LOS EQUIPOS EN LAS TEMPORADAS DE PANDEMIA
+TABLA_HR_TEAMSIZE_AFOROLIMITADO=as.data.frame(prop.table(table(aforo_limitado$HomeTeamSize,aforo_limitado$HR),1))
+TABLA_HR_TEAMSIZE_PUERTACERRADA=as.data.frame(prop.table(table(puerta_cerrada$HomeTeamSize,puerta_cerrada$HR),1))
+TABLA_HR_TEAMSIZE_SINRESTRICCIONES=as.data.frame(prop.table(table(sin_restricciones$HomeTeamSize,sin_restricciones$HR),1))
+
+g1=ggplot(TABLA_HR_TEAMSIZE_AFOROLIMITADO, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Tarjetas rojas")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("Con aforo limitado")
+
+g2=ggplot(TABLA_HR_TEAMSIZE_PUERTACERRADA, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Tarjetas rojas")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("A puerta cerrada")
+
+g3=ggplot(TABLA_HR_TEAMSIZE_SINRESTRICCIONES, aes(x=Var1, y=Freq, fill=Var2))+
+  geom_bar(stat = "identity", color="black")+
+  labs(x="Tamaño del equipo",y="Frecuencia", fill="Tarjetas rojas")+
+  scale_fill_brewer(palette = "Reds")+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1), labels = percent)+
+  geom_text(aes(x=Var1, y=Freq, label=percent(Freq, accuracy = 0.1)), position= position_stack(vjust = 0.5), fontface = "bold", size=5)+
+  theme_base()+ggtitle("Sin restricciones")
+  
+grid.arrange(g1, g2, g3)
+```
+
+\newpage
+## Conclusiones y recomendaciones
+
+Lo desarrollado en este informe es un proyecto de investigación sobre el análisis exploratorio de los partidos de la Premier League, describiéndolos con el propósito de encontrar relación entre el rendimiento de los equipos locales y el aforo en los estadios durante la pandemia del Covid-19. Se realizó un proceso de detección y limpieza de anomalías sobre la base de datos suministrada, de las 37 anomalías encontradas, se lograron imputar por medios oficiales 14 de ellas y el resto se procedio a eliminarlas tomándolas como una MCaR. Después, se procedió a realizar un análisis univariado para todas aquellas variables de interés y se procedió a implementar un análisis bivariado, relacionando nuestras variables de explicativas (Pandemia y Tamaño del equipo) con las demás dependietes que lograban medir el rendimiento de los equipos locales. 
+
+- **Para el análisis univariado:** La mayoría de los locales de la Premier League, al terminar el partido, hacen un gol y quedan victorios, por otro lado, no hacen ninguno y quedan en empate cuando finaliza el primer tiempo. Además, tienen una media de 4.6 tiros al arco, cometen 10.6 faltas por juego, realizan 5.6 tiros de esquina y obtienen al menos una tarjeta amarilla. Por otra parte, predominan los equipos pequeños y la mayoría de los partidos se jugaron sin restricciones durante las temporadas.
+
+- **Para el análisis bivariado:** Tanto las victorias, los goles, tiros al arco y tiros de esquina de los equipos locales, tuvieron una disminución al verse cerrado los estadios y, para todos los casos, se recuperaron al reabrirse y ver a su hinchada otra vez. Por otra parte, las faltas cometidas por los locales aumentaron cuando no había público y disminuían cuando si. Por último, las tarjetas amarillas obtenidas por los equipos visitantes disminuyeron cuando no existía presencia del público, en especial, la hinchada del local. También, se revisó cómo el tamaño del equipo también reaccionó a todas las variables dependientes teniendo como respuesta que, sin importar el tamaño del equipo, se tuvo una disminución en las victorias y demás variables de rendimiento con el cierre de los estadios, y que considerablemente se notó el cambio cuando se reapertura los estadios aumentando así los resultados de ganadores de partidos por parte del equipo local, así como sus tiros de esquina y al arco y número de goles, además de una disminución en las faltas y tarjetas amarillas.
+
+Teniendo en cuenta todo lo anterior, se puede afirmar que **SI** hubo una afectación de la hinchada en el rendimiento de los equipos locales al cerrarse los estadios independientemente del tamaño del equipo.
+
+
+
+
+
+
+

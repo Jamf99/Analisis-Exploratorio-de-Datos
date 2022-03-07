@@ -1,0 +1,30 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {subsection}{Introducción}{2}{section*.2}%
+\contentsline {subsection}{Sobre los datos}{3}{section*.3}%
+\contentsline {subsection}{Resultados de la exploración de datos}{5}{section*.4}%
+\contentsline {subsubsection}{Análisis Univariado}{5}{section*.5}%
+\contentsline {paragraph}{Goles del local y goles del visitante al terminar el partido}{5}{section*.6}%
+\contentsline {paragraph}{Marcardo final del partido}{6}{section*.7}%
+\contentsline {paragraph}{Goles del local y visitante al medio tiempo}{7}{section*.8}%
+\contentsline {paragraph}{Marcador del medio tiempo}{8}{section*.9}%
+\contentsline {paragraph}{Tiros al arco del local}{9}{section*.10}%
+\contentsline {paragraph}{Tiros al arco del visitante}{10}{section*.11}%
+\contentsline {paragraph}{Faltas del local}{11}{section*.12}%
+\contentsline {paragraph}{Faltas del visitante}{12}{section*.13}%
+\contentsline {paragraph}{Tiros de esquina del local}{13}{section*.14}%
+\contentsline {paragraph}{Tiros de esquina del visitante}{14}{section*.15}%
+\contentsline {paragraph}{Tarjetas amarillas del local y del visitante}{15}{section*.16}%
+\contentsline {paragraph}{Tarjetas rojas de los equipos locales y visitantes}{16}{section*.17}%
+\contentsline {paragraph}{Tamaño del equipo}{17}{section*.18}%
+\contentsline {paragraph}{Pandemia}{17}{section*.19}%
+\contentsline {subsubsection}{Análisis Bivariado}{18}{section*.20}%
+\contentsline {paragraph}{FTR y Pandemic}{18}{section*.21}%
+\contentsline {paragraph}{FTR vs TeamSize}{19}{section*.22}%
+\contentsline {paragraph}{FTHG y Pandemic}{20}{section*.23}%
+\contentsline {paragraph}{FTHG vs TeamSize vs Pandemic}{21}{section*.24}%
+\contentsline {paragraph}{HST vs Pandemic}{22}{section*.25}%
+\contentsline {paragraph}{HST vs TeamSize vs Pandemic}{23}{section*.26}%
+\contentsline {paragraph}{HF vs Pandemic}{24}{section*.27}%
+\contentsline {paragraph}{HC vs Pandemic}{24}{section*.28}%
+\contentsline {paragraph}{AY vs Pandemic}{25}{section*.29}%
+\contentsline {subsection}{Conclusiones y recomendaciones}{26}{section*.30}%

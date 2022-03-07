@@ -416,7 +416,18 @@ Esta nueva variable corresponde al 61.7% partidos que **no** se jugaron a puerta
 
 ```{r echo=FALSE,out.width='80%',fig.align='center',fig.pos='H'}
 
-inglesa_final$Pandemic = ifelse((inglesa_final$Date > "2020-03-11" & inglesa_final$Date < "2020-12-02") , "Puerta cerrada", ifelse((inglesa_final$Date >= "2020-12-11" & inglesa_final$Date < "2021-07-19"), "Aforo limitado", "Sin restricciones"))
+inglesa_final$Pandemic = ifelse((inglesa_final$Date > "2020-03-11" & inglesa_final$Date < "2021-05-17") , "Puerta cerrada", ifelse((inglesa_final$Date > "2021-05-17"), "Aforo limitado", "Sin restricciones"))
+
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-13" & inglesa_final$HomeTeam =="Southampton"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-13" & inglesa_final$HomeTeam =="Crystal Palace"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-13" & inglesa_final$HomeTeam =="Fulham"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-13" & inglesa_final$HomeTeam =="Arsenal"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-05" & inglesa_final$HomeTeam =="West Ham"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-05" & inglesa_final$HomeTeam =="Chelsea"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-06" & inglesa_final$HomeTeam =="Tottenham"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-06" & inglesa_final$HomeTeam =="Liverpool"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-07" & inglesa_final$HomeTeam =="Brighton"] = "Aforo limitado"
+inglesa_final$Pandemic[inglesa_final$Date == "2020-12-12" & inglesa_final$HomeTeam =="Everton"] = "Aforo limitado"
 
 tabla_freq(inglesa_final$Pandemic) %>%
   kbl() %>%
